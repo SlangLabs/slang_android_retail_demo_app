@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group
+        android:id="@+id/group1">
+    <item android:id="@+id/grocery_home"
+        android:title="Grocery"/>
+    <item android:id="@+id/pharmacy_home"
+        android:title="Pharmacy"/>
+    <item android:id="@+id/fashion_home"
+        android:title="Fashion"/>
+    <item android:id="@+id/my_offers"
+        android:title="Offers"/>
+    <item android:id="@+id/my_orders"
+        android:title="Order History"/>
+    </group>
+</menu>
