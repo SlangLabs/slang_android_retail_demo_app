@@ -184,14 +184,11 @@ public class SlangInterface {
 
             @Override
             public void onAssistantLocaleChanged(Locale locale) {
-                Repository repository = ((App) (application)).getRepository();
-                repository.setSlangInitialized(true);
             }
 
             @Override
-            public void onUnrecognisedUtterance(String s) {
-                Repository repository = ((App) (application)).getRepository();
-                repository.setSlangInitialized(true);
+            public boolean onUnrecognisedUtterance(String s) {
+                return false;
             }
 
             @Override
@@ -203,6 +200,21 @@ public class SlangInterface {
                         utterances += "::" + utterance;
                     }
                 });
+            }
+
+            @Override
+            public void onOnboardingSuccess() {
+
+            }
+
+            @Override
+            public void onOnboardingFailure() {
+
+            }
+
+            @Override
+            public void onMicPermissionDenied() {
+
             }
         });
     }
