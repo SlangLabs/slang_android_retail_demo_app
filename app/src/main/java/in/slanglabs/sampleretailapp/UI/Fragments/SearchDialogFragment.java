@@ -26,24 +26,27 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import in.slanglabs.sampleretailapp.Model.ItemListUIModel;
 import in.slanglabs.sampleretailapp.Model.ItemOfferCart;
 import in.slanglabs.sampleretailapp.Model.ListType;
 import in.slanglabs.sampleretailapp.R;
 import in.slanglabs.sampleretailapp.UI.ViewModel.AppViewModel;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class SearchDialogFragment extends DialogFragment {
 
     private static final String TAG = "AutoCompleteDialogFragment";
-    public ViewItemListener viewItemListener;
-    private EditText filterText;
-    private NameAdapter nameAdapter;
-    private ImageView searchClearButton;
-    private AppViewModel appViewModel;
-    private String searchString;
-    private TextView searchViewHeader;
+    public ViewItemListener mViewItemListener;
+    private EditText mFilterText;
+    private NameAdapter mNameAdapter;
+    private ImageView mSearchClearButton;
+    private AppViewModel mAppViewModel;
+    private String mSearchString;
+    private TextView mSearchViewHeader;
 
     public static SearchDialogFragment newInstance(String searchText) {
         SearchDialogFragment myFragment = new SearchDialogFragment();
@@ -68,25 +71,25 @@ public class SearchDialogFragment extends DialogFragment {
         View view = inflater.inflate(R.layout.autocomplete_dialog_fragment, container,
                 false);
         if (getArguments() != null) {
-            searchString = getArguments().getString("searchString", "");
+            mSearchString = getArguments().getString("searchString", "");
         }
-        filterText = view.findViewById(R.id.search_text);
-        searchViewHeader = view.findViewById(R.id.search_items_header);
-        if (filterText.requestFocus()) {
+        mFilterText = view.findViewById(R.id.search_text);
+        mSearchViewHeader = view.findViewById(R.id.search_items_header);
+        if (mFilterText.requestFocus()) {
             getDialog().getWindow().setSoftInputMode(
                     WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
         }
-        searchClearButton = view.findViewById(R.id.clear_text);
-        searchClearButton.setOnClickListener(view1 -> {
-            filterText.getText().clear();
+        mSearchClearButton = view.findViewById(R.id.clear_text);
+        mSearchClearButton.setOnClickListener(view1 -> {
+            mFilterText.getText().clear();
             InputMethodManager imm = (InputMethodManager) view1.getContext()
                     .getSystemService(Context.INPUT_METHOD_SERVICE);
             imm.hideSoftInputFromWindow(view1.getWindowToken(), 0);
         });
 
-        filterText.setOnEditorActionListener((textView, actionId, keyEvent) -> {
+        mFilterText.setOnEditorActionListener((textView, actionId, keyEvent) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                viewItemListener.onItemClicked(textView.getText().toString());
+                mViewItemListener.onItemClicked(textView.getText().toString());
                 dismiss();
                 return true;
             }
@@ -96,10 +99,10 @@ public class SearchDialogFragment extends DialogFragment {
         if (savedInstanceState != null) {
             dismiss();
         }
-        nameAdapter = new NameAdapter(getContext(),
+        mNameAdapter = new NameAdapter(getContext(),
                 R.layout.autocomplete_list_item);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        recyclerView.setAdapter(nameAdapter);
+        recyclerView.setAdapter(mNameAdapter);
         ImageButton cancelButton = view.findViewById(R.id.back_arrow);
         cancelButton.setOnClickListener(v -> dismiss());
         return view;
@@ -119,26 +122,34 @@ public class SearchDialogFragment extends DialogFragment {
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        appViewModel = new ViewModelProvider(this).get(
+        mAppViewModel = new ViewModelProvider(this).get(
                 AppViewModel.class);
-        appViewModel.getSearchForNameMediator().observe(
-                getViewLifecycleOwner(), items -> nameAdapter.setItems(items));
-        filterText.addTextChangedListener(filterTextWatcher);
-        filterText.setText(searchString);
-        filterText.setSelection(filterText.getText().length());
-        if (appViewModel.getListType().getValue() != null) {
-            searchString = getArguments() != null ? getArguments()
+
+        mAppViewModel.getSearchForNameMediator().observe(
+                getViewLifecycleOwner(), items -> {
+                    Set<String> names = new HashSet<>();
+                    for(ItemListUIModel itemOfferCart: items) {
+                        names.add(itemOfferCart.itemOfferCart.item.name);
+                    }
+                    mNameAdapter.setItems(names);
+                });
+
+        mFilterText.addTextChangedListener(filterTextWatcher);
+        mFilterText.setText(mSearchString);
+        mFilterText.setSelection(mFilterText.getText().length());
+        if (mAppViewModel.getListType().getValue() != null) {
+            mSearchString = getArguments() != null ? getArguments()
                     .getString("searchString", "") : "";
-            @ListType String listType = appViewModel.getListType().getValue();
+            @ListType String listType = mAppViewModel.getListType().getValue();
             switch (listType) {
                 case ListType.GROCERY:
-                    searchViewHeader.setText("Search Grocery Items");
+                    mSearchViewHeader.setText("Search Grocery Items");
                     break;
                 case ListType.PHARMACY:
-                    searchViewHeader.setText("Search Pharmacy Items");
+                    mSearchViewHeader.setText("Search Pharmacy Items");
                     break;
                 case ListType.FASHION:
-                    searchViewHeader.setText("Search Fashion Items");
+                    mSearchViewHeader.setText("Search Fashion Items");
                     break;
             }
         }
@@ -156,8 +167,8 @@ public class SearchDialogFragment extends DialogFragment {
         public void onTextChanged(CharSequence s, int start, int before,
                                   int count) {
             String currentSearchTerm = s.toString();
-            appViewModel.getSearchItem(currentSearchTerm);
-            searchClearButton.setVisibility(View.VISIBLE);
+            mAppViewModel.getSearchItem(currentSearchTerm);
+            mSearchClearButton.setVisibility(View.VISIBLE);
         }
     };
 
@@ -180,20 +191,20 @@ public class SearchDialogFragment extends DialogFragment {
 
         @Override
         public void onClick(View view) {
-            viewItemListener.onItemClicked(countryName.getText().toString());
+            mViewItemListener.onItemClicked(countryName.getText().toString());
             SearchDialogFragment.this.dismiss();
         }
     }
 
     public class NameAdapter extends RecyclerView.Adapter<NameHolder> {
 
-        void setItems(List<ItemOfferCart> items) {
+        void setItems(Set<String> items) {
             this.items.clear();
             this.items.addAll(items);
             notifyDataSetChanged();
         }
 
-        private final ArrayList<ItemOfferCart> items = new ArrayList<>();
+        private final ArrayList<String> items = new ArrayList<>();
 
         private final Context context;
         private final int itemResource;
@@ -214,7 +225,7 @@ public class SearchDialogFragment extends DialogFragment {
 
         @Override
         public void onBindViewHolder(@NonNull NameHolder holder, int position) {
-            String name = items.get(position).item.name;
+            String name = items.get(position);
             holder.setName(name);
         }
 

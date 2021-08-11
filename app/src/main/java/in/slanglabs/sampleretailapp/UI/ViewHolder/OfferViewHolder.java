@@ -14,13 +14,13 @@ import in.slanglabs.sampleretailapp.UI.ItemClickListener;
 
 public class OfferViewHolder extends RecyclerView.ViewHolder {
 
-    private ImageView offerImage;
-    private TextView offerName;
+    private ImageView mOfferImage;
+    private TextView mOfferName;
 
     public OfferViewHolder(@NonNull View itemView, ItemClickListener itemClickListener) {
         super(itemView);
-        offerImage = itemView.findViewById(R.id.category_image);
-        offerName = itemView.findViewById(R.id.category_name);
+        mOfferImage = itemView.findViewById(R.id.category_image);
+        mOfferName = itemView.findViewById(R.id.category_name);
         this.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -30,7 +30,7 @@ public class OfferViewHolder extends RecyclerView.ViewHolder {
     }
 
     public void setData(Offer categoryItem) {
-        offerImage.getBackground().setColorFilter(categoryItem.color, PorterDuff.Mode.SRC_OVER);
-        offerName.setText(categoryItem.offerName);
+        mOfferImage.getBackground().setColorFilter(categoryItem.color, PorterDuff.Mode.SRC_OVER);
+        mOfferName.setText(categoryItem.offerName);
     }
 }

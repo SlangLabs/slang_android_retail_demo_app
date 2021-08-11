@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -15,18 +14,18 @@ import android.widget.TextView;
 
 import in.slanglabs.sampleretailapp.Model.Item;
 import in.slanglabs.sampleretailapp.R;
-import in.slanglabs.sampleretailapp.Slang.SlangInterface;
 import in.slanglabs.sampleretailapp.UI.Adapters.OfferItemsAdapter;
 import in.slanglabs.sampleretailapp.UI.ItemClickListener;
 import in.slanglabs.sampleretailapp.UI.ViewModel.AppViewModel;
+
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.Locale;
 
 public class OffersActivity extends MainActivity implements ItemClickListener {
 
-    private OfferItemsAdapter listAdapter;
-    private ProgressDialog dialog;
+    private OfferItemsAdapter mListAdapter;
+    private View mLoadingItemsView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,7 +33,7 @@ public class OffersActivity extends MainActivity implements ItemClickListener {
 
         LayoutInflater inflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View contentView = inflater.inflate(R.layout.activity_search_list, null, false);
-        ll.addView(contentView, new ConstraintLayout.LayoutParams(
+        mLinearLayout.addView(contentView, new ConstraintLayout.LayoutParams(
                 ConstraintLayout.LayoutParams.MATCH_PARENT,
                 ConstraintLayout.LayoutParams.MATCH_PARENT));
 
@@ -42,10 +41,8 @@ public class OffersActivity extends MainActivity implements ItemClickListener {
             getSupportActionBar().setTitle("My Offers");
         }
 
-        dialog = ProgressDialog.show(OffersActivity.this, "",
-                "Loading. Please wait...", true);
-
-        dialog.show();
+        mLoadingItemsView = contentView.findViewById(R.id.loading_items_view);
+        mLoadingItemsView.setVisibility(View.GONE);
 
         RecyclerView listItemView = contentView.findViewById(R.id.list_item_view);
 
@@ -53,8 +50,8 @@ public class OffersActivity extends MainActivity implements ItemClickListener {
                 AppViewModel.class);
         appViewModel.getOfferItems().observe(this,
                 offerItems -> {
-            dialog.dismiss();
-            listAdapter.setList(offerItems);
+                    mLoadingItemsView.setVisibility(View.GONE);
+                    mListAdapter.setList(offerItems);
                 });
 
         FloatingActionButton fab = contentView.findViewById(R.id.fab);
@@ -77,12 +74,12 @@ public class OffersActivity extends MainActivity implements ItemClickListener {
                     cartItemCount.setText(String.format(Locale.ENGLISH, "%d", cartItems.size()));
                 });
 
-        listAdapter = new OfferItemsAdapter(OfferItemsAdapter.Type.VERTICAL_LIST,
+        mListAdapter = new OfferItemsAdapter(OfferItemsAdapter.Type.VERTICAL_LIST,
                 appViewModel, this, null);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         listItemView.setLayoutManager(layoutManager);
         listItemView.setItemAnimator(null);
-        listItemView.setAdapter(listAdapter);
+        listItemView.setAdapter(mListAdapter);
 
     }
 
@@ -99,6 +96,6 @@ public class OffersActivity extends MainActivity implements ItemClickListener {
         super.onResume();
 
         //Show the slang trigger in this activity
-        appViewModel.getSlangInterface().showTrigger(this);
+        mAppViewModel.getSlangInterface().showTrigger(this);
     }
 }

@@ -25,22 +25,22 @@ public class OfferItemsAdapter extends
         VERTICAL_LIST
     }
 
-    private List<OfferItemCart> list = new ArrayList<>();
+    private List<OfferItemCart> mList = new ArrayList<>();
     private OfferItemsAdapter.Type type;
 
-    private AppViewModel appViewModel;
-    private ItemClickListener itemClickListener;
-    private Integer maxSize;
+    private AppViewModel mAppViewModel;
+    private ItemClickListener mItemClickListener;
+    private Integer mMaxSize;
 
     public OfferItemsAdapter(OfferItemsAdapter.Type type, AppViewModel appViewModel, ItemClickListener itemClickListener, Integer maxSize) {
-        this.appViewModel = appViewModel;
-        this.itemClickListener = itemClickListener;
+        this.mAppViewModel = appViewModel;
+        this.mItemClickListener = itemClickListener;
         this.type = type;
-        this.maxSize = maxSize;
+        this.mMaxSize = maxSize;
     }
 
     public void setList(List<OfferItemCart> list) {
-        this.list = list;
+        this.mList = list;
         notifyDataSetChanged();
     }
 
@@ -58,7 +58,7 @@ public class OfferItemsAdapter extends
                     .from(parent.getContext()).inflate(
                             R.layout.offer_item,
                             parent, false);
-            return new OfferViewHolder(retailItem, itemClickListener);
+            return new OfferViewHolder(retailItem, mItemClickListener);
         }
     }
 
@@ -66,34 +66,34 @@ public class OfferItemsAdapter extends
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         if (type == Type.VERTICAL_LIST) {
             ItemView viewHolder = (ItemView) holder;
-            viewHolder.setData(list.get(position).item, list.get(position).cart, list.get(position).offer);
+            viewHolder.setData(mList.get(position).item, mList.get(position).cart, mList.get(position).offer, false);
         } else {
             OfferViewHolder viewHolder = (OfferViewHolder) holder;
-            viewHolder.setData(list.get(position).offer);
+            viewHolder.setData(mList.get(position).offer);
         }
     }
 
     @Override
     public int getItemCount() {
-        if (maxSize != null) {
-            return Math.min(maxSize, list.size());
+        if (mMaxSize != null) {
+            return Math.min(mMaxSize, mList.size());
         }
-        return list.size();
+        return mList.size();
     }
 
     @Override
     public void itemClicked(int position) {
-        this.itemClickListener.itemClicked(list.get(position).item);
+        this.mItemClickListener.itemClicked(mList.get(position).item);
     }
 
     @Override
     public void addItem(int position) {
-        appViewModel.addItem(list.get(position).item);
+        mAppViewModel.addItem(mList.get(position).item, true);
     }
 
     @Override
     public void removeItem(int position) {
-        appViewModel.removeItem(list.get(position).item);
+        mAppViewModel.removeItem(mList.get(position).item);
     }
 
 }

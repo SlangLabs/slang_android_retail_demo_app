@@ -13,9 +13,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import in.slanglabs.sampleretailapp.BuildConfig;
 import in.slanglabs.sampleretailapp.Model.CartItemOffer;
 import in.slanglabs.sampleretailapp.Model.Item;
-import in.slanglabs.sampleretailapp.Model.ItemOfferCart;
 import in.slanglabs.sampleretailapp.Model.Offer;
 import in.slanglabs.sampleretailapp.R;
 import in.slanglabs.sampleretailapp.UI.Adapters.CartAdapter;
@@ -27,9 +27,9 @@ import java.util.Locale;
 
 public class CartActivity extends MainActivity implements ItemClickListener {
 
-    private CartAdapter listAdapter;
-    private TextView totalCost;
-    private TextView totalSave;
+    private CartAdapter mListAdapter;
+    private TextView mTotalCost;
+    private TextView mTotalSave;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,7 +37,7 @@ public class CartActivity extends MainActivity implements ItemClickListener {
 
         LayoutInflater inflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View contentView = inflater.inflate(R.layout.activity_cart, null, false);
-        ll.addView(contentView,
+        mLinearLayout.addView(contentView,
                 new ConstraintLayout.LayoutParams(ConstraintLayout.LayoutParams.MATCH_PARENT,
                         ConstraintLayout.LayoutParams.MATCH_PARENT));
 
@@ -45,7 +45,7 @@ public class CartActivity extends MainActivity implements ItemClickListener {
             getSupportActionBar().setTitle("My Cart");
         }
 
-        searchLayout.setVisibility(View.GONE);
+        mSearchLayoutView.setVisibility(View.GONE);
 
         RecyclerView listItemView = contentView.findViewById(R.id.list_item_view);
         Button buyButton = contentView.findViewById(R.id.buy_button);
@@ -61,7 +61,7 @@ public class CartActivity extends MainActivity implements ItemClickListener {
             alertDialog.setMessage("Are you sure, you want to clear your cart ?");
             alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, "YES",
                     (dialog, which) -> {
-                        appViewModel.clearCart();
+                        mAppViewModel.clearCart();
                         dialog.dismiss();
                     });
             alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "NO",
@@ -70,16 +70,16 @@ public class CartActivity extends MainActivity implements ItemClickListener {
         });
 
         View checkoutSection = contentView.findViewById(R.id.checkout_section);
-        totalCost = contentView.findViewById(R.id.total_cost);
-        totalSave = contentView.findViewById(R.id.total_save);
+        mTotalCost = contentView.findViewById(R.id.total_cost);
+        mTotalSave = contentView.findViewById(R.id.total_save);
 
         TextView orderEmptyTextView = contentView.findViewById(R.id.order_empty_text_view);
         orderEmptyTextView.setVisibility(View.GONE);
-        appViewModel.getCartItems().observe(this,
+        mAppViewModel.getCartItems().observe(this,
                 cartItems -> {
-                    listAdapter.setList(cartItems);
-                    totalCost.setText("");
-                    totalSave.setVisibility(View.GONE);
+                    mListAdapter.setList(cartItems);
+                    mTotalCost.setText("");
+                    mTotalSave.setVisibility(View.GONE);
                     if (cartItems.size() == 0) {
                         fab.setVisibility(View.GONE);
                         checkoutSection.setVisibility(View.GONE);
@@ -102,20 +102,20 @@ public class CartActivity extends MainActivity implements ItemClickListener {
                         }
                         sum += price;
                     }
-                    totalCost.setText(String.format(Locale.ENGLISH, "Total: Rs %d",
-                            sum));
+                    mTotalCost.setText(String.format(Locale.ENGLISH, "Total: %s %d",
+                            BuildConfig.CURRENCY_TYPE, sum));
                     int saved = sumWithoutDiscount - sum;
                     if (saved > 0) {
-                        totalSave.setVisibility(View.VISIBLE);
-                        totalSave.setText(String.format(Locale.ENGLISH, "Saved: Rs %d", saved
+                        mTotalSave.setVisibility(View.VISIBLE);
+                        mTotalSave.setText(String.format(Locale.ENGLISH, "Saved: %s %d", BuildConfig.CURRENCY_TYPE, saved
                         ));
                     }
                 });
-        listAdapter = new CartAdapter(appViewModel, this);
+        mListAdapter = new CartAdapter(mAppViewModel, this);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         listItemView.setLayoutManager(layoutManager);
         listItemView.setItemAnimator(null);
-        listItemView.setAdapter(listAdapter);
+        listItemView.setAdapter(mListAdapter);
     }
 
     @Override
@@ -130,6 +130,6 @@ public class CartActivity extends MainActivity implements ItemClickListener {
         super.onResume();
 
         //Show the slang trigger in this activity
-        appViewModel.getSlangInterface().showTrigger(this);
+        mAppViewModel.getSlangInterface().showTrigger(this);
     }
 }

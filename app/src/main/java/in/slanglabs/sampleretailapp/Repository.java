@@ -1,7 +1,7 @@
 package in.slanglabs.sampleretailapp;
 
-import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 
 import androidx.core.util.Pair;
@@ -19,11 +19,12 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
-import ca.rmen.porterstemmer.PorterStemmer;
 import in.slanglabs.assistants.retail.OrderInfo;
 import in.slanglabs.assistants.retail.SearchInfo;
 import in.slanglabs.sampleretailapp.Model.CartItem;
@@ -46,6 +47,7 @@ import in.slanglabs.sampleretailapp.UI.Activities.OffersActivity;
 import in.slanglabs.sampleretailapp.UI.Activities.OrderActivity;
 import in.slanglabs.sampleretailapp.UI.Activities.OrderItemsActivity;
 import in.slanglabs.sampleretailapp.UI.Activities.SearchListActivity;
+import in.slanglabs.sampleretailapp.UI.ViewModel.AppViewModel;
 import in.slanglabs.sampleretailapp.db.AppDatabase;
 import me.xdrop.fuzzywuzzy.FuzzySearch;
 import me.xdrop.fuzzywuzzy.model.ExtractedResult;
@@ -54,45 +56,40 @@ public class Repository {
 
     private String TAG = "Repository";
 
-    private final MutableLiveData<String> listType =
-            new MutableLiveData<>();
-
-    private final SingleLiveEvent<Pair<Class, Bundle>> activityToStart =
-            new SingleLiveEvent<>();
-
-    private final SingleLiveEvent<FeedbackItem> showFeedBackFragment = new SingleLiveEvent<>();
-
-    private final MutableLiveData<Boolean> slangInitialized =
-            new MutableLiveData<>();
-
-    private final MutableLiveData<Boolean> slangInvoked =
-            new MutableLiveData<>();
-
     private final AppDatabase mDatabase;
-    private final AppExecutors appExecutors;
+    private final AppExecutors mAppExecutors;
     private final SlangInterface mSlangInterface;
 
-    private Observer observer;
+    private final MutableLiveData<String> mListType =
+            new MutableLiveData<>();
 
-    private SharedPreferences mPrefs;
+    private final SingleLiveEvent<Pair<Class, Bundle>> mActivityToStart =
+            new SingleLiveEvent<>();
 
-    private int selectedSearchItemId = -1;
+    private final SingleLiveEvent<Boolean> startSlangSession =
+            new SingleLiveEvent<>();
+
+    private final Handler addToCartNewJourneyHandler = new Handler();
+
+    private Observer mObserver;
+
+    private int mSelectedSearchItemId = -1;
+    private SearchItem mCurrentSearchItem;
+    private OrderInfo mCurrentOrderItem;
 
     Repository(final AppDatabase database, final AppExecutors appExecutors,
-               final SharedPreferences preferences,
                final SlangInterface slangInterface) {
         this.mDatabase = database;
-        this.appExecutors = appExecutors;
+        this.mAppExecutors = appExecutors;
         mSlangInterface = slangInterface;
-        this.mPrefs = preferences;
 
-        listType.setValue(ListType.GROCERY);
+        mListType.setValue(ListType.GROCERY);
 
         Random rng = new Random();
         LiveData<List<Item>> items = database.itemDao().getItems();
-        observer = (Observer<List<Item>>) itemAndOffers -> {
+        mObserver = (Observer<List<Item>>) itemAndOffers -> {
             if (itemAndOffers.size() > 1) {
-                items.removeObserver(observer);
+                items.removeObserver(mObserver);
             } else {
                 return;
             }
@@ -125,70 +122,58 @@ public class Repository {
             });
         };
 
-        items.observeForever(observer);
+        items.observeForever(mObserver);
 
     }
 
     public void switchCategory(@ListType String category) {
-        listType.setValue(category);
-        activityToStart.setValue(new Pair<>(SearchListActivity.class, null));
-        mSlangInterface.clearSearchContext();
-    }
-
-    public void setSlangInitialized(boolean value) {
-        slangInitialized.postValue(value);
-    }
-
-    public void setSlangInvoked(boolean value) {
-        slangInvoked.postValue(value);
+        mListType.setValue(category);
+        mActivityToStart.setValue(new Pair<>(SearchListActivity.class, null));
     }
 
     //Cart Related Methods
-    public void addItemToCart(Item item, int quantity) {
-        appExecutors.diskIO().execute(() -> {
-            mDatabase.runInTransaction(() -> {
-                int currentNumber = quantity;
-                CartItem cartItem = mDatabase.cartDao().getCartItemForIdSync(item.itemId);
-                if (cartItem != null) {
-                    int number = cartItem.quantity;
-                    number = number + currentNumber;
-                    cartItem.quantity = number;
-                    mDatabase.cartDao().update(cartItem);
-                } else {
-                    CartItem cartItemFinal = new CartItem();
-                    cartItemFinal.itemId = item.itemId;
-                    cartItemFinal.quantity = currentNumber;
-                    mDatabase.cartDao().insert(cartItemFinal);
-                }
+    public void addItemToCart(Item item, int quantity, boolean uiAction) {
+        mAppExecutors.diskIO().execute(() -> mDatabase.runInTransaction(() -> {
+            CartItem cartItem = mDatabase.cartDao().getCartItemForIdSync(item.itemId);
+            if (cartItem != null) {
+                int number = cartItem.quantity;
+                number = number + quantity;
+                cartItem.quantity = number;
+                mDatabase.cartDao().update(cartItem);
+            } else {
+                CartItem cartItemFinal = new CartItem();
+                cartItemFinal.itemId = item.itemId;
+                cartItemFinal.quantity = quantity;
+                mDatabase.cartDao().insert(cartItemFinal);
+            }
 
-            });
-        });
+        }));
         mSlangInterface.notifyAddToCartSuccess();
+        if(uiAction) {
+            addToCartNewJourneyHandler.removeCallbacksAndMessages(null);
+            addToCartNewJourneyHandler.postDelayed(() -> startSlangSession.postValue(true),2000);
+        }
     }
 
     public void removeItemFromCart(Item item) {
-        appExecutors.diskIO().execute(() -> {
-            mDatabase.runInTransaction(() -> {
-                CartItem cartItem = mDatabase.cartDao().getCartItemForIdSync(item.itemId);
-                if (cartItem == null) {
-                    return;
-                }
-                int number = cartItem.quantity;
-                number = number - 1;
-                if (number == 0) {
-                    mDatabase.cartDao().remove(cartItem);
-                    return;
-                }
-                cartItem.quantity = number;
-                mDatabase.cartDao().update(cartItem);
-            });
-        });
+        mAppExecutors.diskIO().execute(() -> mDatabase.runInTransaction(() -> {
+            CartItem cartItem = mDatabase.cartDao().getCartItemForIdSync(item.itemId);
+            if (cartItem == null) {
+                return;
+            }
+            int number = cartItem.quantity;
+            number = number - 1;
+            if (number == 0) {
+                mDatabase.cartDao().remove(cartItem);
+                return;
+            }
+            cartItem.quantity = number;
+            mDatabase.cartDao().update(cartItem);
+        }));
     }
 
     public void clearCart() {
-        appExecutors.diskIO().execute(() -> {
-            mDatabase.cartDao().removeAllItems();
-        });
+        mAppExecutors.diskIO().execute(() -> mDatabase.cartDao().removeAllItems());
     }
 
     //Order Related Methods
@@ -197,19 +182,21 @@ public class Repository {
     }
 
     public void addOrderItem(OrderItem item) {
-        appExecutors.diskIO().execute(() -> {
-            mDatabase.orderDao().insert(item);
-        });
+        mAppExecutors.diskIO().execute(() -> mDatabase.orderDao().insert(item));
     }
 
     public void removeOrderItem(OrderItem item) {
-        appExecutors.diskIO().execute(() -> {
-            mDatabase.orderDao().update(false, item.orderId);
-        });
+        mAppExecutors.diskIO().execute(() -> mDatabase.orderDao().update(false, item.orderId));
+        mSlangInterface.notifyOrderManagementCancelConfirmationSuccess();
     }
 
     //Slang callback handlers
     public void onSearch(SearchInfo searchInfo) {
+
+        if(searchInfo.getItem().getDescription().isEmpty()) {
+            mSlangInterface.notifySearchItemNotSpecified();
+            return;
+        }
 
         //Get search category
         String category = searchInfo.getItem().getCategory();
@@ -218,13 +205,13 @@ public class Repository {
         if (category != null && !category.isEmpty()) {
             switch (category) {
                 case "pharmacy":
-                    listType.setValue(ListType.PHARMACY);
+                    mListType.setValue(ListType.PHARMACY);
                     break;
                 case "grocery":
-                    listType.setValue(ListType.GROCERY);
+                    mListType.setValue(ListType.GROCERY);
                     break;
                 case "fashion":
-                    listType.setValue(ListType.FASHION);
+                    mListType.setValue(ListType.FASHION);
             }
         }
 
@@ -232,24 +219,33 @@ public class Repository {
         Bundle bundle = new Bundle();
         SearchItem searchItem = new SearchItem();
         searchItem.name = searchInfo.getItem().getDescription();
+        if(searchInfo.getItem().getProductType() != null) {
+            searchItem.productName = searchInfo.getItem().getProductType();
+        }
         if (searchInfo.getItem().getSize() != null) {
             String unit = searchInfo.getItem().getSize().getUnit().toString();
-            if (unit.equals(in.slanglabs.assistants.retail.Item.Size.Unit.GRAM.toString())) {
-                unit = "g";
+            int amount = 0;
+            if (unit.equals(in.slanglabs.assistants.retail.Item.Size.Unit.KILOGRAM.toString())) {
+                amount = searchInfo.getItem().getSize().getAmount();
             }
-            searchItem.size = searchInfo.getItem().getSize().getAmount() + " " + unit;
+            else if (unit.equals(in.slanglabs.assistants.retail.Item.Size.Unit.GRAM.toString())) {
+                amount = Math.round((float)searchInfo.getItem().getSize().getAmount()/1000);
+            }
+            if(amount != 0) {
+                searchItem.size = amount + "" + "kg";
+            }
         }
         if (searchInfo.getItem().getQuantity() != null) {
             searchItem.quantity = searchInfo.getItem().getQuantity().getAmount();
         }
         searchItem.isAddToCart = searchInfo.isAddToCart();
 
-        if (selectedSearchItemId != -1) {
-            int itemId = selectedSearchItemId;
+        if (mSelectedSearchItemId != -1) {
+            int itemId = mSelectedSearchItemId;
             if (searchItem.quantity > 0) {
-                appExecutors.diskIO().execute(() -> {
+                mAppExecutors.diskIO().execute(() -> {
                     Item item = mDatabase.itemDao().getItemId(itemId);
-                    addItemToCart(item, searchItem.quantity);
+                    addItemToCart(item, searchItem.quantity, false);
                 });
                 mSlangInterface.notifyAddToCartSuccess();
             }
@@ -257,24 +253,19 @@ public class Repository {
         }
 
         bundle.putSerializable("search_term", searchItem);
-        bundle.putBoolean("is_voice_search", true);
-        activityToStart.setValue(new Pair<>(SearchListActivity.class, bundle));
+        mActivityToStart.setValue(new Pair<>(SearchListActivity.class, bundle));
     }
 
     public void onOrder(OrderInfo orderInfo) {
+
+        mCurrentOrderItem = orderInfo;
 
         //Get order item index
         int index = orderInfo.getIndex();
         if (index == 0) {
 
             //Move to the orders list activity to show all the orders.
-            Bundle bundle = new Bundle();
-            if (orderInfo.getAction().equals(OrderInfo.Action.VIEW)) {
-                bundle.putBoolean("is_voice_view_order", true);
-            } else {
-                bundle.putBoolean("is_voice_cancel_order", true);
-            }
-            activityToStart.setValue(new Pair<>(OrderActivity.class, bundle));
+            mActivityToStart.setValue(new Pair<>(OrderActivity.class, null));
             return;
         }
 
@@ -304,42 +295,33 @@ public class Repository {
     }
 
     public void onNavigation(String targetString) {
-        Bundle bundle = new Bundle();
-        bundle.putBoolean("is_voice_navigation", true);
-
         //Get the target view string and make sure to navigate to the right view.
         switch (targetString) {
             case "back":
 
                 //Set null for the targetActivity to indicate that we just to finish the current one.
-                activityToStart.setValue(new Pair<>(null, null));
+                mActivityToStart.setValue(new Pair<>(null, null));
+                mSlangInterface.notifyNavigationUserJourneySuccess();
                 break;
             case "home":
-                activityToStart.setValue(new Pair<>(SearchListActivity.class, bundle));
-                break;
-            case "pharmacy":
-                listType.setValue(ListType.PHARMACY);
-                activityToStart.setValue(new Pair<>(SearchListActivity.class, bundle));
-                break;
-            case "grocery":
-                listType.setValue(ListType.GROCERY);
-                activityToStart.setValue(new Pair<>(SearchListActivity.class, bundle));
-                break;
-            case "fashion":
-                listType.setValue(ListType.FASHION);
-                activityToStart.setValue(new Pair<>(SearchListActivity.class, bundle));
+                mActivityToStart.setValue(new Pair<>(SearchListActivity.class, null));
+                mSlangInterface.notifyNavigationUserJourneySuccess();
                 break;
             case "cart":
-                activityToStart.setValue(new Pair<>(CartActivity.class, bundle));
+                mActivityToStart.setValue(new Pair<>(CartActivity.class, null));
+                mSlangInterface.notifyNavigationUserJourneySuccess();
                 break;
             case "order":
-                activityToStart.setValue(new Pair<>(OrderActivity.class, bundle));
+                mActivityToStart.setValue(new Pair<>(OrderActivity.class, null));
+                mSlangInterface.notifyNavigationUserJourneySuccess();
                 break;
             case "checkout":
-                activityToStart.setValue(new Pair<>(CheckOutActivity.class, bundle));
+                mActivityToStart.setValue(new Pair<>(CheckOutActivity.class, null));
+                mSlangInterface.notifyNavigationUserJourneySuccess();
                 break;
             case "offers":
-                activityToStart.setValue(new Pair<>(OffersActivity.class, bundle));
+                mActivityToStart.setValue(new Pair<>(OffersActivity.class, null));
+                mSlangInterface.notifyNavigationUserJourneySuccess();
                 break;
             default:
                 mSlangInterface.notifyNavigationUserJourneyFailure();
@@ -347,17 +329,17 @@ public class Repository {
     }
 
     public void showOrder(int orderIndex) {
-        appExecutors.diskIO().execute(() -> {
+        mAppExecutors.diskIO().execute(() -> {
             //Note, its advisable to perform all SlangRetailAssistant actions on the main thread.
             List<OrderItem> orderItems = mDatabase.orderDao().loadAllOrdersSync();
             if (orderItems.size() < 1) {
 
-                appExecutors.mainThread().execute(mSlangInterface::notifyOrderManagementEmpty);
+                mAppExecutors.mainThread().execute(mSlangInterface::notifyOrderManagementEmpty);
                 return;
             } else if (orderIndex > orderItems.size()) {
 
                 //Notify SlangRetailAssistant the order item cannot be found.
-                appExecutors.mainThread().execute(()
+                mAppExecutors.mainThread().execute(()
                         -> mSlangInterface.notifyOrderNotFound(orderIndex));
                 return;
             }
@@ -366,11 +348,10 @@ public class Repository {
                 //If the index is -1, it means that we need to show the latest/last order
                 //Obtain the latest order and move to that view.
                 String orderId = orderItems.get(0).orderId;
-                appExecutors.mainThread().execute(() -> {
+                mAppExecutors.mainThread().execute(() -> {
                     Bundle bundle = new Bundle();
                     bundle.putString("orderItemId", orderId);
-                    bundle.putBoolean("is_voice_view_order", true);
-                    activityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
+                    mActivityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
                 });
                 return;
             }
@@ -379,142 +360,167 @@ public class Repository {
             //Obtain the item at that index and move to that view.
             //Note: SlangRetailAssistant will provide the index starting from 1 instead of 0 hence, we need to subtract 1.
             String orderId = orderItems.get(orderIndex - 1).orderId;
-            appExecutors.mainThread().execute(() -> {
+            mAppExecutors.mainThread().execute(() -> {
                 Bundle bundle = new Bundle();
                 bundle.putString("orderItemId", orderId);
-                bundle.putBoolean("is_voice_view_order", true);
-                activityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
+                mActivityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
             });
         });
     }
 
+    public void cancelOrderConfirmation(int orderIndex, boolean forceUI) {
+        if(mCurrentOrderItem == null) {
+            return;
+        }
+        if((mCurrentOrderItem.getAction() != OrderInfo.Action.CANCEL) ||
+        (mCurrentOrderItem.getCancelConfirmationStatus() != OrderInfo.CancelConfirmationStatus.UNKNOWN)) {
+            return;
+        }
+        if(forceUI) {
+            mSlangInterface.notifyOrderManagementCancelConfirmation(orderIndex);
+        }
+        else {
+            cancelOrderConfirmation(orderIndex);
+        }
+    }
+
     public void cancelOrderConfirmation(int orderIndex) {
-        appExecutors.diskIO().execute(() -> {
+        if(mCurrentOrderItem == null) {
+            return;
+        }
+        if(mCurrentOrderItem.getAction() != OrderInfo.Action.CANCEL) {
+            return;
+        }
+        mAppExecutors.diskIO().execute(() -> {
             //Note, its advisable to perform all SlangRetailAssistant actions on the main thread.
             List<OrderItem> orderItems = mDatabase.orderDao().loadAllOrdersSync();
             if (orderItems.size() < 1) {
 
                 //Notify SlangRetailAssistant the order items are empty.
-                appExecutors.mainThread().execute(mSlangInterface::notifyOrderManagementEmpty);
+                mAppExecutors.mainThread().execute(mSlangInterface::notifyOrderManagementCancelEmpty);
                 return;
             } else if (orderIndex > orderItems.size()) {
 
                 //Notify SlangRetailAssistant the order item cannot be found.
-                appExecutors.mainThread().execute(()
+                mAppExecutors.mainThread().execute(()
                         -> mSlangInterface.notifyOrderManagementCancelOrderNotFound(orderIndex));
                 return;
             }
+
             if (orderIndex == -1) {
 
                 //If the index is -1, it means that we need to show the latest/last order
                 //Obtain the latest order and move to that view.
                 String orderId = orderItems.get(0).orderId;
-                appExecutors.mainThread().execute(() -> {
+                mAppExecutors.mainThread().execute(() -> {
                     Bundle bundle = new Bundle();
                     bundle.putString("orderItemId", orderId);
-                    bundle.putBoolean("is_voice_order_cancel", true);
-                    //Note : Since, this is a cancel confirmation request, we need to add this param to show the confirmation alert on the order item page.
-                    bundle.putBoolean("showConfirmScreen", true);
-                    activityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
+                    mActivityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
                 });
+
+                if(!orderItems.get(0).active) {
+                    mAppExecutors.mainThread().execute(mSlangInterface::notifyOrderManagementCancelSuccess);
+                }
+                else {
+                    mAppExecutors.mainThread().execute(() -> mSlangInterface.notifyOrderManagementCancelConfirmation(orderIndex));
+                }
+
                 return;
             }
 
             //If the index is not -1, it means that we need move to the item at that specific index.
             //Obtain the item at that index and move to that view.
             //Note: SlangRetailAssistant will provide the index starting from 1 instead of 0 hence, we need to subtract 1.
+            if(!orderItems.get(orderIndex - 1).active) {
+                mAppExecutors.mainThread().execute(mSlangInterface::notifyOrderManagementCancelSuccess);
+            }
+            else {
+                mAppExecutors.mainThread().execute(() -> mSlangInterface.notifyOrderManagementCancelConfirmation(orderIndex));
+            }
+
             String orderId = orderItems.get(orderIndex - 1).orderId;
-            appExecutors.mainThread().execute(() -> {
+            mAppExecutors.mainThread().execute(() -> {
                 Bundle bundle = new Bundle();
                 bundle.putString("orderItemId", orderId);
-                bundle.putInt("orderItemIndex", orderIndex);
-                bundle.putBoolean("is_voice_order_cancel", true);
-                //Note : Since, this is a cancel confirmation request, we need to add this param to show the confirmation alert on the order item page.
-                bundle.putBoolean("showConfirmScreen", true);
-                activityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
+                mActivityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
             });
+
         });
     }
 
     public void acceptOrderCancel(int orderIndex) {
-        appExecutors.diskIO().execute(() -> {
+        mAppExecutors.diskIO().execute(() -> {
             //Note, its advisable to perform all SlangRetailAssistant actions on the main thread.
 
             List<OrderItem> orderItems = mDatabase.orderDao().loadAllOrdersSync();
             if (orderItems.size() < 1) {
 
                 //Notify SlangRetailAssistant the order items are empty.
-                appExecutors.mainThread().execute(mSlangInterface::notifyOrderManagementEmpty);
+                mAppExecutors.mainThread().execute(mSlangInterface::notifyOrderManagementEmpty);
                 return;
             } else if (orderIndex > orderItems.size()) {
 
                 //Notify SlangRetailAssistant the order item cannot be found.
-                appExecutors.mainThread().execute(()
+                mAppExecutors.mainThread().execute(()
                         -> mSlangInterface.notifyOrderManagementCancelOrderNotFound(orderIndex));
                 return;
             }
+
+            mSlangInterface.notifyOrderManagementCancelSuccess();
+
             if (orderIndex == -1) {
 
                 //If the index is -1, it means that we need to show the latest/last order
                 //Obtain the latest order and move to that view.
-                appExecutors.mainThread().execute(() -> {
+                mAppExecutors.mainThread().execute(() -> {
                     removeOrderItem(orderItems.get(0));
                     Bundle bundle = new Bundle();
                     bundle.putString("orderItemId", orderItems.get(0).orderId);
-                    bundle.putBoolean("is_voice_order_cancel", true);
-                    //Note : We need to add this param to remove the confirmation alert on the order item page.
-                    bundle.putBoolean("showConfirmScreen", false);
-                    activityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
+                    mActivityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
                 });
                 return;
             }
-            appExecutors.mainThread().execute(() -> {
+            mAppExecutors.mainThread().execute(() -> {
                 removeOrderItem(orderItems.get(orderIndex - 1));
                 Bundle bundle = new Bundle();
                 bundle.putString("orderItemId", orderItems.get(orderIndex - 1).orderId);
-                bundle.putBoolean("is_voice_order_cancel", true);
-                //Note : We need to add this param to remove the confirmation alert on the order item page.
-                bundle.putBoolean("showConfirmScreen", false);
-                activityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
+                mActivityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
             });
         });
     }
 
     public void denyOrderCancel(int orderIndex) {
-        appExecutors.diskIO().execute(() -> {
+        mAppExecutors.diskIO().execute(() -> {
 
             //Note, its advisable to perform all SlangRetailAssistant actions on the main thread.
             List<OrderItem> orderItems = mDatabase.orderDao().loadAllOrdersSync();
             if (orderItems.size() < 1) {
 
                 //Notify SlangRetailAssistant the order items are empty.
-                appExecutors.mainThread().execute(mSlangInterface::notifyOrderManagementEmpty);
+                mAppExecutors.mainThread().execute(mSlangInterface::notifyOrderManagementEmpty);
                 return;
             } else if (orderIndex > orderItems.size()) {
 
                 //Notify SlangRetailAssistant the order item cannot be found.
-                appExecutors.mainThread().execute(()
+                mAppExecutors.mainThread().execute(()
                         -> mSlangInterface.notifyOrderManagementCancelOrderNotFound(orderIndex));
                 return;
             }
+
+            mSlangInterface.notifyOrderManagementCancelFailure();
+
             if (orderIndex == -1) {
-                appExecutors.mainThread().execute(() -> {
+                mAppExecutors.mainThread().execute(() -> {
                     Bundle bundle = new Bundle();
                     bundle.putString("orderItemId", orderItems.get(0).orderId);
-                    bundle.putBoolean("is_voice_order_cancel", true);
-                    //Note : We need to add this param to remove the confirmation alert on the order item page.
-                    bundle.putBoolean("showConfirmScreen", false);
-                    activityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
+                    mActivityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
                 });
                 return;
             }
-            appExecutors.mainThread().execute(() -> {
+            mAppExecutors.mainThread().execute(() -> {
                 Bundle bundle = new Bundle();
                 bundle.putString("orderItemId", orderItems.get(orderIndex - 1).orderId);
-                bundle.putBoolean("is_voice_order_cancel", true);
-                //Note : We need to add this param to remove the confirmation alert on the order item page.
-                bundle.putBoolean("showConfirmScreen", false);
-                activityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
+                mActivityToStart.setValue(new Pair<>(OrderItemsActivity.class, bundle));
             });
         });
     }
@@ -530,7 +536,9 @@ public class Repository {
             Map<String, String> map = adapter.fromJson(json);
             Map<String, String> journeyDetails = feedbackItem.journeyDetails;
             for (String key : journeyDetails.keySet()) {
-                map.put("journeyDetails." + key, journeyDetails.get(key));
+                if (map != null) {
+                    map.put("journeyDetails." + key, journeyDetails.get(key));
+                }
             }
             if (feedbackItem.isPositiveFeedback) {
                 mSlangInterface.trackAppEvent("feedback_positive",map);
@@ -543,20 +551,16 @@ public class Repository {
     }
 
     //Getters
-    public MutableLiveData<String> getListType() {
-        return listType;
+    public MutableLiveData<String> getmListType() {
+        return mListType;
     }
 
     public SlangInterface getSlangInterface() {
         return mSlangInterface;
     }
 
-    public SingleLiveEvent<Pair<Class, Bundle>> getActivityToStart() {
-        return activityToStart;
-    }
-
-    public SingleLiveEvent<FeedbackItem> getFeedbackFragment() {
-        return showFeedBackFragment;
+    public SingleLiveEvent<Pair<Class, Bundle>> getmActivityToStart() {
+        return mActivityToStart;
     }
 
     public LiveData<List<ItemOfferCart>> getItems() {
@@ -584,18 +588,15 @@ public class Repository {
             @ListType String listType,
             FilterOptions filterOptions) {
 
-        PorterStemmer porterStemmer = new PorterStemmer();
-        String stem = porterStemmer.stemWord(name);
-
         MediatorLiveData<List<ItemOfferCart>> itemOfferCartListLiveData = new MediatorLiveData<>();
 
         StringBuilder stringBuilder = new StringBuilder();
-        List<Object> args = new ArrayList();
-        stringBuilder.append("SELECT * FROM items JOIN itemsFts ON items.name == itemsFts.name WHERE type =?");
+        List<Object> args = new ArrayList<>();
+        stringBuilder.append("SELECT * FROM items JOIN itemsFts ON items.itemId == itemsFts.itemId WHERE type =?");
         args.add(listType);
-        if (!stem.equals("")) {
+        if (!name.equals("")) {
             stringBuilder.append(" AND itemsFts MATCH ?");
-            args.add(fixQuery(stem));
+            args.add(fixQuery(name));
         }
         if (!filterOptions.getBrands().isEmpty()) {
             stringBuilder.append(" AND");
@@ -691,17 +692,29 @@ public class Repository {
                 mDatabase.itemDao().getItemsAndOffersBasedOnSearchFts(
                         new SimpleSQLiteQuery(stringBuilder.toString(), args.toArray())),
                 itemOfferCarts -> {
-                    appExecutors.diskIO().execute(() -> {
-                        List<String> itemNames = new ArrayList<>();
-                        HashMap<String, ItemOfferCart> itemNamesObjectMap = new HashMap<>();
-                        List<ItemOfferCart> itemOfferCartObjects = new ArrayList<>();
+                    if(mDatabase.getDatabaseCreated().getValue() == null || !mDatabase.getDatabaseCreated().getValue()) {
+                        return;
+                    }
+                    mAppExecutors.diskIO().execute(() -> {
+                        Set<String> itemNames = new HashSet<>();
+                        HashMap<String, List<ItemOfferCart>> itemNamesObjectMap = new HashMap<>();
                         for (ItemOfferCart itemOfferCart : itemOfferCarts) {
                             itemNames.add(itemOfferCart.item.name);
-                            itemNamesObjectMap.put(itemOfferCart.item.name, itemOfferCart);
+                            List<ItemOfferCart> itemOfferCartObjects = new ArrayList<>();
+                            if (itemNamesObjectMap.containsKey(itemOfferCart.item.name)) {
+                                itemOfferCartObjects = itemNamesObjectMap.get(itemOfferCart.item.name);
+                            }
+                            itemOfferCartObjects.add(itemOfferCart);
+                            itemNamesObjectMap.put(itemOfferCart.item.name, itemOfferCartObjects);
                         }
-                        List<ExtractedResult> results = FuzzySearch.extractSorted(stem, itemNames);
+                        List<ItemOfferCart> itemOfferCartObjects = new ArrayList<>();
+                        List<ExtractedResult> results = FuzzySearch.extractSorted(name, itemNames);
                         for (ExtractedResult result : results) {
-                            itemOfferCartObjects.add(itemNamesObjectMap.get(result.getString()));
+                            List<ItemOfferCart> itemOfferCartMapObjects = itemNamesObjectMap.get(result.getString());
+                            for(ItemOfferCart itemOfferCart: itemOfferCartMapObjects) {
+                                itemOfferCart.item.confidence = result.getScore();
+                                itemOfferCartObjects.add(itemOfferCart);
+                            }
                         }
                         itemOfferCartListLiveData.postValue(itemOfferCartObjects);
                     });
@@ -712,14 +725,6 @@ public class Repository {
 
     public LiveData<Boolean> getIsDbCreated() {
         return mDatabase.getDatabaseCreated();
-    }
-
-    public LiveData<Boolean> getSlangInitiailzed() {
-        return slangInitialized;
-    }
-
-    public LiveData<Boolean> getIsSlangInvoked() {
-        return slangInvoked;
     }
 
     public LiveData<List<String>> getItemBrands(@ListType String type) {
@@ -742,12 +747,24 @@ public class Repository {
         return mDatabase.itemDao().getItemGenders(type);
     }
 
-    public void setShowFeedBackFragment(FeedbackItem feedbackItem) {
-        showFeedBackFragment.postValue(feedbackItem);
+    public void setSelectedSearchItem(int itemId) {
+        mSelectedSearchItemId = itemId;
     }
 
-    public void setSelectedSearchItem(int itemId) {
-        selectedSearchItemId = itemId;
+    public void setCurrentSearchItem(SearchItem searchItem) {
+        mCurrentSearchItem = searchItem;
+    }
+
+    public void setCurrentOrderItem(OrderInfo orderItem) {
+        mCurrentOrderItem = orderItem;
+    }
+
+    public SearchItem getCurrentSearchItem() {
+        return mCurrentSearchItem;
+    }
+
+    public OrderInfo getCurrentOrderItem() {
+        return mCurrentOrderItem;
     }
 
     //Helpers
@@ -757,6 +774,7 @@ public class Repository {
     }
 
     private static String fixQuery(String query) {
+        query = query.replaceAll("[^a-zA-Z0-9]", " ");
         String[] splited = query.split("\\s+");
         StringBuilder finalString = new StringBuilder();
         for (String substring : splited) {
@@ -771,7 +789,7 @@ public class Repository {
         return finalString.toString();
     }
 
-    public static void appendPlaceholders(StringBuilder builder, int count) {
+    private static void appendPlaceholders(StringBuilder builder, int count) {
         for (int i = 0; i < count; i++) {
             builder.append("?");
             if (i < count - 1) {
@@ -780,4 +798,7 @@ public class Repository {
         }
     }
 
+    public SingleLiveEvent<Boolean> getStartSlangSession() {
+        return startSlangSession;
+    }
 }

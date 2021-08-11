@@ -28,6 +28,7 @@
                     android:layout_width="50dp"
                     android:layout_height="match_parent"
                     android:id="@+id/feedback_button"
+                    android:visibility="gone"
                     android:background="@android:color/transparent"
                     android:src="@drawable/ic_baseline_feedback_24"
                     android:layout_gravity="right"
@@ -67,14 +68,14 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="0dp"
                 android:layout_height="40dp"
-                android:layout_marginEnd="8dp"
+                android:layout_marginEnd="16dp"
                 android:layout_marginBottom="16dp"
                 android:layout_marginStart="16dp"
                 android:background="@android:color/white"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/voice_image"
+                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
 
@@ -120,18 +121,6 @@
                     app:tint="@android:color/black" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <ImageView
-                android:id="@+id/voice_image"
-                android:layout_width="45dp"
-                android:layout_height="45dp"
-                android:layout_marginRight="8dp"
-                android:layout_marginBottom="16dp"
-                android:scaleType="centerInside"
-                android:src="@drawable/slang_lib_slang_mic_v2"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintRight_toRightOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -6,6 +6,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import in.slanglabs.sampleretailapp.BuildConfig;
 import in.slanglabs.sampleretailapp.Model.OrderItem;
 import in.slanglabs.sampleretailapp.R;
 import in.slanglabs.sampleretailapp.UI.ItemClickListener;
@@ -15,17 +16,17 @@ import java.util.Locale;
 
 public class OrderViewHolder extends RecyclerView.ViewHolder {
 
-    private TextView orderTime;
-    private TextView orderQuantities;
-    private TextView orderPrice;
-    private TextView orderStatus;
+    private TextView mOrderTime;
+    private TextView mOrderQuantities;
+    private TextView mOrderPrice;
+    private TextView mOrderStatus;
 
     public OrderViewHolder(@NonNull View itemView, ItemClickListener itemClickListener) {
         super(itemView);
-        orderTime = itemView.findViewById(R.id.order_time);
-        orderQuantities = itemView.findViewById(R.id.order_quantities);
-        orderPrice = itemView.findViewById(R.id.order_price);
-        orderStatus = itemView.findViewById(R.id.order_status);
+        mOrderTime = itemView.findViewById(R.id.order_time);
+        mOrderQuantities = itemView.findViewById(R.id.order_quantities);
+        mOrderPrice = itemView.findViewById(R.id.order_price);
+        mOrderStatus = itemView.findViewById(R.id.order_status);
         itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -37,16 +38,16 @@ public class OrderViewHolder extends RecyclerView.ViewHolder {
     public void setData(OrderItem orderItem) {
         SimpleDateFormat format = new SimpleDateFormat("MMM dd, yyyy hh:mm aa");
         String date = format.format(orderItem.orderTime);
-        orderTime.setText(date);
-        orderPrice.setText(String.format(Locale.ENGLISH,"Rs %d",orderItem.orderPrice));
-        orderQuantities.setText(String.format(Locale.ENGLISH,"%d items",orderItem.numberOfItems));
+        mOrderTime.setText(date);
+        mOrderPrice.setText(String.format(Locale.ENGLISH,"%s %d", BuildConfig.CURRENCY_TYPE, orderItem.orderPrice));
+        mOrderQuantities.setText(String.format(Locale.ENGLISH,"%d items",orderItem.numberOfItems));
         if(orderItem.active) {
-            orderStatus.setBackgroundColor(itemView.getResources().getColor(R.color.colorAccent));
-            orderStatus.setText("ACTIVE");
+            mOrderStatus.setBackgroundColor(itemView.getResources().getColor(R.color.colorAccent));
+            mOrderStatus.setText("ACTIVE");
         }
         else {
-            orderStatus.setBackgroundColor(itemView.getResources().getColor(R.color.colorPrimaryDark));
-            orderStatus.setText("CANCELLED");
+            mOrderStatus.setBackgroundColor(itemView.getResources().getColor(R.color.colorPrimaryDark));
+            mOrderStatus.setText("CANCELLED");
         }
     }
 

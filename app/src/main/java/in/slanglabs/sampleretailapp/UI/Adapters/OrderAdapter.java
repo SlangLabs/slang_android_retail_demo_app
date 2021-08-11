@@ -18,16 +18,16 @@ import java.util.List;
 public class OrderAdapter extends
         RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
-    private ItemClickListener itemClickListener;
+    private ItemClickListener mItemClickListener;
 
     public OrderAdapter(ItemClickListener itemClickListener) {
-        this.itemClickListener = itemClickListener;
+        this.mItemClickListener = itemClickListener;
     }
 
-    private List<OrderItem> list = new ArrayList<>();
+    private List<OrderItem> mList = new ArrayList<>();
 
     public void setList(List<OrderItem> list) {
-        this.list = list;
+        this.mList = list;
         notifyDataSetChanged();
     }
 
@@ -38,17 +38,17 @@ public class OrderAdapter extends
                 .from(parent.getContext()).inflate(
                         R.layout.order_item,
                         parent, false);
-        return new OrderViewHolder(orderItem,itemClickListener);
+        return new OrderViewHolder(orderItem,mItemClickListener);
     }
 
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         OrderViewHolder viewHolder = (OrderViewHolder) holder;
-        viewHolder.setData(list.get(position));
+        viewHolder.setData(mList.get(position));
     }
 
     @Override
     public int getItemCount() {
-        return list.size();
+        return mList.size();
     }
 }

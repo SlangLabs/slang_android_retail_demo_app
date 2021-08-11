@@ -13,8 +13,7 @@ import com.bumptech.glide.Glide;
 
 import java.util.Locale;
 
-import in.slanglabs.assistants.retail.SearchUserJourney;
-import in.slanglabs.assistants.retail.SlangRetailAssistant;
+import in.slanglabs.sampleretailapp.BuildConfig;
 import in.slanglabs.sampleretailapp.Model.CartItem;
 import in.slanglabs.sampleretailapp.Model.Item;
 import in.slanglabs.sampleretailapp.Model.ListType;
@@ -23,93 +22,93 @@ import in.slanglabs.sampleretailapp.R;
 
 public class ItemActivity extends BaseActivity {
 
-    private TextView itemName;
-    private TextView imageName;
-    private TextView quantities;
-    private Button addItem;
-    private Button removeItem;
-    private Button addButton;
-    private View controlButton;
-    private TextView currentNumber;
-    private TextView price;
-    private TextView offerText;
-    private ImageView imageView;
+    private TextView mItemName;
+    private TextView mImageName;
+    private TextView mQuantities;
+    private Button mAddItem;
+    private Button mRemoveItem;
+    private Button mAddButton;
+    private View mControlButton;
+    private TextView mCurrentNumber;
+    private TextView mPrice;
+    private TextView mOfferText;
+    private ImageView mImageView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_item);
 
-        itemName = findViewById(R.id.item_name);
-        imageName = findViewById(R.id.image_item_name);
-        quantities = findViewById(R.id.item_quantities);
-        controlButton = findViewById(R.id.control_buttons);
-        addButton = findViewById(R.id.add_button);
-        addItem = findViewById(R.id.item_add);
-        currentNumber = findViewById(R.id.item_current_number);
-        price = findViewById(R.id.item_price);
-        offerText = findViewById(R.id.item_offer_text);
-        removeItem = findViewById(R.id.item_remove);
-        imageView = findViewById(R.id.imageView);
+        mItemName = findViewById(R.id.item_name);
+        mImageName = findViewById(R.id.image_item_name);
+        mQuantities = findViewById(R.id.item_quantities);
+        mControlButton = findViewById(R.id.control_buttons);
+        mAddButton = findViewById(R.id.add_button);
+        mAddItem = findViewById(R.id.item_add);
+        mCurrentNumber = findViewById(R.id.item_current_number);
+        mPrice = findViewById(R.id.item_price);
+        mOfferText = findViewById(R.id.item_offer_text);
+        mRemoveItem = findViewById(R.id.item_remove);
+        mImageView = findViewById(R.id.imageView);
 
         int itemId = getIntent().getIntExtra("itemId", 0);
 
-        appViewModel.getItemForId(itemId).observe(this, itemOfferCart -> {
+        mAppViewModel.getItemForId(itemId).observe(this, itemOfferCart -> {
             handleItem(itemOfferCart.cart, itemOfferCart.offer, itemOfferCart.item);
-            addItem.setOnClickListener(view -> {
-                appViewModel.addItem(itemOfferCart.item);
+            mAddItem.setOnClickListener(view -> {
+                mAppViewModel.addItem(itemOfferCart.item, true);
             });
-            addButton.setOnClickListener(view -> {
-                appViewModel.addItem(itemOfferCart.item);
+            mAddButton.setOnClickListener(view -> {
+                mAppViewModel.addItem(itemOfferCart.item, true);
             });
-            removeItem.setOnClickListener(view -> {
-                appViewModel.removeItem(itemOfferCart.item);
+            mRemoveItem.setOnClickListener(view -> {
+                mAppViewModel.removeItem(itemOfferCart.item);
             });
 
             if(itemOfferCart.item.imageUrl != null) {
-                Glide.with(this).load(itemOfferCart.item.imageUrl).into(imageView);
+                Glide.with(this).load(itemOfferCart.item.imageUrl).into(mImageView);
             }
             else {
                 Glide.with(this).load(getImageUrl(itemOfferCart.item.name, itemOfferCart.item.type))
-                        .into(imageView);
+                        .into(mImageView);
             }
         });
     }
 
     private void handleItem(CartItem item, Offer offerItem, Item listItem) {
-        addButton.setVisibility(View.VISIBLE);
-        controlButton.setVisibility(View.GONE);
-        itemName.setText(listItem.name);
-        imageName.setText(String.format(Locale.ENGLISH, "%s %s", listItem.name, listItem.size));
-        quantities.setText(String.format(Locale.ENGLISH, "%s", listItem.size));
-        currentNumber.setText("0");
-        String priceString = String.format(Locale.ENGLISH, "Rs %.1f",
-                listItem.price);
-        price.setText(priceString);
+        mAddButton.setVisibility(View.VISIBLE);
+        mControlButton.setVisibility(View.GONE);
+        mItemName.setText(listItem.name);
+        mImageName.setText(String.format(Locale.ENGLISH, "%s %s", listItem.name, listItem.size));
+        mQuantities.setText(String.format(Locale.ENGLISH, "%s", listItem.size));
+        mCurrentNumber.setText("0");
+        String priceString = String.format(Locale.ENGLISH, "%s %.1f",
+                BuildConfig.CURRENCY_TYPE, listItem.price);
+        mPrice.setText(priceString);
         if (item != null && offerItem != null) {
             if (item.quantity >= offerItem.minQuantity) {
                 float discountedPrice;
                 discountedPrice = (float) (listItem.price - (listItem.price * offerItem.percentageDiscount));
-                priceString = String.format(Locale.ENGLISH, "Rs %.1f\nRs %.1f",
-                        listItem.price, discountedPrice);
+                priceString = String.format(Locale.ENGLISH, "%s %.1f\n%s %.1f",
+                        BuildConfig.CURRENCY_TYPE, listItem.price, BuildConfig.CURRENCY_TYPE, discountedPrice);
                 Spannable spannable = new SpannableString(priceString);
                 spannable.setSpan(
                         new StrikethroughSpan(),
                         0, priceString.lastIndexOf("\n"),
                         Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                price.setText(spannable);
+                mPrice.setText(spannable);
             }
         }
         if (item != null) {
-            currentNumber.setText(String.format(Locale.ENGLISH, "%d",
+            mCurrentNumber.setText(String.format(Locale.ENGLISH, "%d",
                     item.quantity));
-            addButton.setVisibility(View.GONE);
-            controlButton.setVisibility(View.VISIBLE);
+            mAddButton.setVisibility(View.GONE);
+            mControlButton.setVisibility(View.VISIBLE);
         }
-        offerText.setVisibility(View.GONE);
+        mOfferText.setVisibility(View.GONE);
         if (offerItem != null) {
-            offerText.setVisibility(View.VISIBLE);
-            offerText.setText(String.format(Locale.ENGLISH, "Buy %d and get %d%% off",
+            mOfferText.setVisibility(View.VISIBLE);
+            mOfferText.setText(String.format(Locale.ENGLISH, "Buy %d and get %d%% off",
                     offerItem.minQuantity,
                     (int) (offerItem.percentageDiscount * 100)));
         }
@@ -120,7 +119,7 @@ public class ItemActivity extends BaseActivity {
         super.onResume();
 
         //Show the slang trigger in this activity
-        appViewModel.getSlangInterface().showTrigger(this);
+        mAppViewModel.getSlangInterface().showTrigger(this);
     }
 
     private String getImageUrl(String name, @ListType String category) {

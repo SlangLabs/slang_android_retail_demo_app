@@ -13,8 +13,8 @@ A sample retail with the following features :
 This app has been integrated with the SlangRetailAssistant :
 - It supports Search, Order Managament and Navigation User Journey.
 
-Please, replace the `APIKey` and `AssistantID` in the following location :
-`app/src/main/java/in/slanglabs/sampleretailapp/App.java`
+Please, replace the `<APIKey>` and `<AssistantID>` in the following location :
+`app/build.gradle`
 
 The `APIKey` and `AssistantID` is available from the SlangConva console page.
 

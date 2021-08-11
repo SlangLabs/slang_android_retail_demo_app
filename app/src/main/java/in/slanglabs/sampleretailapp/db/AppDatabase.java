@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import in.slanglabs.sampleretailapp.AppExecutors;
+import in.slanglabs.sampleretailapp.BuildConfig;
 import in.slanglabs.sampleretailapp.Model.CartItem;
 import in.slanglabs.sampleretailapp.Model.Item;
 import in.slanglabs.sampleretailapp.Model.ItemsFts;
@@ -36,7 +37,7 @@ import in.slanglabs.sampleretailapp.db.dao.ItemDao;
 import in.slanglabs.sampleretailapp.db.dao.OfferDao;
 import in.slanglabs.sampleretailapp.db.dao.OrderDao;
 
-@Database(entities = {OrderItem.class, CartItem.class, Offer.class, Item.class, ItemsFts.class}, version = 18, exportSchema = false)
+@Database(entities = {OrderItem.class, CartItem.class, Offer.class, Item.class, ItemsFts.class}, version = BuildConfig.DB_VERSION, exportSchema = false)
 @TypeConverters({CartItemsConvertor.class, DateConverter.class})
 public abstract class AppDatabase extends RoomDatabase {
 
@@ -98,8 +99,6 @@ public abstract class AppDatabase extends RoomDatabase {
         appExecutors.diskIO().execute(() -> {
             //Parsing the json file and adding the items to items table.
             String json = loadJSONFromAsset(context, "list.json");
-            String json2 = loadJSONFromAsset(context, "pharmacy_app_data.json");
-            String json3 = loadJSONFromAsset(context, "fashion_app_data.json");
             Moshi moshi = new Moshi.Builder().build();
             Type type = Types.newParameterizedType(List.class, Item.class);
             JsonAdapter<List<Item>> adapter = moshi.adapter(type);
@@ -110,22 +109,6 @@ public abstract class AppDatabase extends RoomDatabase {
                     listItems = adapter.fromJson(json);
                     for (Item item : listItems) {
                         item.type = ListType.GROCERY;
-                    }
-                    finalListItems.addAll(listItems);
-                }
-
-                if (json2 != null) {
-                    listItems = adapter.fromJson(json2);
-                    for (Item item : listItems) {
-                        item.type = ListType.PHARMACY;
-                    }
-                    finalListItems.addAll(listItems);
-                }
-
-                if (json3 != null) {
-                    listItems = adapter.fromJson(json3);
-                    for (Item item : listItems) {
-                        item.type = ListType.FASHION;
                     }
                     finalListItems.addAll(listItems);
                 }

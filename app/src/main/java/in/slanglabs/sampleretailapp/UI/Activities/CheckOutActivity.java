@@ -1,22 +1,19 @@
 package in.slanglabs.sampleretailapp.UI.Activities;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.ViewModelProvider;
-
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 
-import in.slanglabs.sampleretailapp.Model.CartItemOffer;
-import in.slanglabs.sampleretailapp.Model.ItemOfferCart;
-import in.slanglabs.sampleretailapp.Model.Offer;
-import in.slanglabs.sampleretailapp.Model.OrderItem;
-import in.slanglabs.sampleretailapp.R;
-import in.slanglabs.sampleretailapp.Slang.SlangInterface;
-import in.slanglabs.sampleretailapp.UI.ViewModel.AppViewModel;
+import androidx.lifecycle.ViewModelProvider;
 
 import java.util.Date;
 import java.util.UUID;
+
+import in.slanglabs.sampleretailapp.Model.CartItemOffer;
+import in.slanglabs.sampleretailapp.Model.Offer;
+import in.slanglabs.sampleretailapp.Model.OrderItem;
+import in.slanglabs.sampleretailapp.R;
+import in.slanglabs.sampleretailapp.UI.ViewModel.AppViewModel;
 
 public class CheckOutActivity extends BaseActivity {
 
@@ -25,9 +22,9 @@ public class CheckOutActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_check_out);
 
-        appViewModel = new ViewModelProvider(this).get(
+        mAppViewModel = new ViewModelProvider(this).get(
                 AppViewModel.class);
-        appViewModel.getCartItems().observe(this,
+        mAppViewModel.getCartItems().observe(this,
                 cartItems -> {
                     if (cartItems.size() == 0) {
                         onBackPressed();
@@ -51,18 +48,14 @@ public class CheckOutActivity extends BaseActivity {
                     orderItem.active = true;
                     orderItem.orderTime = new Date();
                     orderItem.orderItems = cartItems;
-                    appViewModel.addOrderItem(orderItem);
-                    appViewModel.clearCart();
+                    mAppViewModel.addOrderItem(orderItem);
+                    mAppViewModel.clearCart();
                     new Handler().postDelayed(() -> {
                         Intent intent = new Intent(CheckOutActivity.this, SearchListActivity.class);
                         startActivity(intent);
                     }, 2000);
 
                 });
-
-        if (getIntent().getBooleanExtra("is_voice_view_order", false)) {
-            appViewModel.getSlangInterface().notifyNavigationUserJourneySuccess();
-        }
     }
 
     @Override
@@ -74,6 +67,6 @@ public class CheckOutActivity extends BaseActivity {
         super.onResume();
 
         //Hide the slang trigger in this activity
-        appViewModel.getSlangInterface().hideTrigger(this);
+        mAppViewModel.getSlangInterface().hideTrigger(this);
     }
 }

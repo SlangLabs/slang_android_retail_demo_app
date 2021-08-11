@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 
+import in.slanglabs.sampleretailapp.BuildConfig;
 import in.slanglabs.sampleretailapp.Model.CartItem;
 import in.slanglabs.sampleretailapp.Model.Item;
 import in.slanglabs.sampleretailapp.Model.ListType;
@@ -22,40 +23,40 @@ import java.util.Locale;
 
 public class OrderCartViewHolder extends RecyclerView.ViewHolder {
 
-    private TextView itemName;
-    private TextView quantities;
-    private TextView currentNumber;
-    private TextView price;
-    private TextView brandName;
-    private ImageView imageView;
+    private TextView mItemName;
+    private TextView mQuantities;
+    private TextView mCurrentNumber;
+    private TextView mPrice;
+    private TextView mBrandName;
+    private ImageView mImageView;
 
     public OrderCartViewHolder(@NonNull View itemView) {
         super(itemView);
-        itemName = itemView.findViewById(R.id.item_name);
-        brandName = itemView.findViewById(R.id.item_brand_name);
-        quantities = itemView.findViewById(R.id.item_quantities);
-        currentNumber = itemView.findViewById(R.id.item_total_quantity);
-        price = itemView.findViewById(R.id.item_price);
-        imageView = itemView.findViewById(R.id.imageView);
+        mItemName = itemView.findViewById(R.id.item_name);
+        mBrandName = itemView.findViewById(R.id.item_brand_name);
+        mQuantities = itemView.findViewById(R.id.item_quantities);
+        mCurrentNumber = itemView.findViewById(R.id.item_total_quantity);
+        mPrice = itemView.findViewById(R.id.item_price);
+        mImageView = itemView.findViewById(R.id.imageView);
     }
 
     public void setData(Item item, CartItem cartItem, Offer offerItem) {
-        itemName.setText(item.name);
-        brandName.setText(item.brand);
-        quantities.setText(String.format(Locale.ENGLISH, "%s", item.size));
-        currentNumber.setText("0");
-        currentNumber.setText(String.format(Locale.ENGLISH, "Quantity : %d", cartItem.quantity));
+        mItemName.setText(item.name);
+        mBrandName.setText(item.brand);
+        mQuantities.setText(String.format(Locale.ENGLISH, "%s", item.size));
+        mCurrentNumber.setText("0");
+        mCurrentNumber.setText(String.format(Locale.ENGLISH, "Quantity : %d", cartItem.quantity));
         if(item.imageUrl != null) {
-            Glide.with(itemView).load(item.imageUrl).into(imageView);
+            Glide.with(itemView).load(item.imageUrl).into(mImageView);
         }
         else {
-            Glide.with(itemView).load(getImageUrl(item.name, item.type)).into(imageView);
+            Glide.with(itemView).load(getImageUrl(item.name, item.type)).into(mImageView);
         }
 
         int totalPrice = (int) (cartItem.quantity * item.price);
-        String priceString = String.format(Locale.ENGLISH, "Rs %d",
-                totalPrice);
-        price.setText(priceString);
+        String priceString = String.format(Locale.ENGLISH, "%s %d",
+                BuildConfig.CURRENCY_TYPE, totalPrice);
+        mPrice.setText(priceString);
 
         if (offerItem == null) {
             return;
@@ -63,8 +64,8 @@ public class OrderCartViewHolder extends RecyclerView.ViewHolder {
         if (cartItem.quantity >= offerItem.minQuantity) {
             int discountedPrice;
             discountedPrice = (int) (totalPrice - (totalPrice * offerItem.percentageDiscount));
-            priceString = String.format(Locale.ENGLISH, "Rs %d\nRs %d",
-                    totalPrice, discountedPrice);
+            priceString = String.format(Locale.ENGLISH, "%s %d\n%s %d",
+                    BuildConfig.CURRENCY_TYPE, totalPrice, BuildConfig.CURRENCY_TYPE, discountedPrice);
         }
         Spannable spannable = new SpannableString(priceString);
         if (cartItem.quantity >= offerItem.minQuantity) {
@@ -73,7 +74,7 @@ public class OrderCartViewHolder extends RecyclerView.ViewHolder {
                     0, priceString.lastIndexOf("\n"),
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
-        price.setText(spannable);
+        mPrice.setText(spannable);
 
     }
 

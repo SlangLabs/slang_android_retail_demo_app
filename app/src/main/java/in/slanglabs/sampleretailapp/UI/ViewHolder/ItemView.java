@@ -1,23 +1,26 @@
 package in.slanglabs.sampleretailapp.UI.ViewHolder;
 
+import android.content.res.Resources;
+import android.graphics.Color;
+import android.os.Handler;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.style.StrikethroughSpan;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.google.android.material.card.MaterialCardView;
 
+import in.slanglabs.sampleretailapp.BuildConfig;
 import in.slanglabs.sampleretailapp.Model.CartItem;
-import in.slanglabs.sampleretailapp.Model.CartItemOffer;
 import in.slanglabs.sampleretailapp.Model.Item;
-import in.slanglabs.sampleretailapp.Model.ItemOfferCart;
 import in.slanglabs.sampleretailapp.Model.ListType;
 import in.slanglabs.sampleretailapp.Model.Offer;
 import in.slanglabs.sampleretailapp.R;
@@ -25,136 +28,114 @@ import in.slanglabs.sampleretailapp.UI.ItemClickListener;
 
 import java.util.Locale;
 
+import static com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade;
+
 public class ItemView extends RecyclerView.ViewHolder {
 
-    private TextView itemName;
-    private TextView imageName;
-    private TextView quantities;
-    private TextView addButton;
-    private View controlButton;
-    private TextView currentNumber;
-    private TextView price;
-    private TextView offerText;
-    private TextView brandName;
-    private ImageView imageView;
+    private final MaterialCardView mParentView;
+    private final TextView mItemName;
+    private final TextView mImageName;
+    private final TextView mQuantities;
+    private final TextView mAddButton;
+    private final View mControlButton;
+    private final TextView mCurrentNumber;
+    private final TextView mPrice;
+    private final View mOffersView;
+    private final TextView mOfferText;
+    private final TextView mBrandName;
+    private final ImageView mImageView;
+    private final ImageButton mRemoveItem;
 
     public ItemView(@NonNull View itemView, ItemClickListener itemClickListener) {
         super(itemView);
-        itemName = itemView.findViewById(R.id.item_name);
-        imageName = itemView.findViewById(R.id.image_item_name);
-        brandName = itemView.findViewById(R.id.item_brand_name);
-        quantities = itemView.findViewById(R.id.item_quantities);
-        imageView = itemView.findViewById(R.id.imageView);
-        controlButton = itemView.findViewById(R.id.control_buttons);
-        addButton = itemView.findViewById(R.id.add_button);
-        ImageButton addItem = itemView.findViewById(R.id.item_add);
+        mParentView = itemView.findViewById(R.id.parentView);
+        mItemName = itemView.findViewById(R.id.item_name);
+        mImageName = itemView.findViewById(R.id.image_item_name);
+        mBrandName = itemView.findViewById(R.id.item_brand_name);
+        mQuantities = itemView.findViewById(R.id.item_quantities);
+        mImageView = itemView.findViewById(R.id.imageView);
+        mControlButton = itemView.findViewById(R.id.control_buttons);
+        mAddButton = itemView.findViewById(R.id.add_button);
+        ImageButton addItem;
+        addItem = itemView.findViewById(R.id.item_add);
         addItem.setOnClickListener(view -> itemClickListener.addItem(getAdapterPosition()));
-        addButton.setOnClickListener(view -> itemClickListener.addItem(getAdapterPosition()));
-        ImageButton removeItem = itemView.findViewById(R.id.item_remove);
-        removeItem.setOnClickListener(view -> itemClickListener.removeItem(getAdapterPosition()));
-        currentNumber = itemView.findViewById(R.id.item_current_number);
-        price = itemView.findViewById(R.id.item_price);
-        offerText = itemView.findViewById(R.id.item_offer_text);
+        mAddButton.setOnClickListener(view -> itemClickListener.addItem(getAdapterPosition()));
+        mRemoveItem = itemView.findViewById(R.id.item_remove);
+        mRemoveItem.setOnClickListener(view -> itemClickListener.removeItem(getAdapterPosition()));
+        mCurrentNumber = itemView.findViewById(R.id.item_current_number);
+        mPrice = itemView.findViewById(R.id.item_price);
+        mOffersView = itemView.findViewById(R.id.offer_view);
+        mOfferText = itemView.findViewById(R.id.item_offer_text);
         itemView.setOnClickListener(view -> itemClickListener.itemClicked(getAdapterPosition()));
     }
 
-    public void setData(Item listItem, CartItem item, Offer offerItem) {
-        addButton.setVisibility(View.VISIBLE);
-        controlButton.setVisibility(View.GONE);
-        quantities.setVisibility(View.GONE);
-        itemName.setText(listItem.name);
-        brandName.setText(listItem.brand);
-        imageName.setText(String.format(Locale.ENGLISH, "%s", listItem.name));
+    public void setData(Item listItem, CartItem item, Offer offerItem, boolean shouldHighlight) {
+        mParentView.setStrokeColor(Color.WHITE);
+        mAddButton.setVisibility(View.VISIBLE);
+        mControlButton.setVisibility(View.VISIBLE);
+        mCurrentNumber.setVisibility(View.GONE);
+        mRemoveItem.setVisibility(View.GONE);
+        mQuantities.setVisibility(View.GONE);
+        mOffersView.setVisibility(View.GONE);
+
+        mItemName.setText(listItem.name);
+        mBrandName.setText(listItem.brand);
+        mImageName.setText(String.format(Locale.ENGLISH, "%s", listItem.name));
         if(listItem.imageUrl != null && !listItem.imageUrl.isEmpty()) {
-            Glide.with(itemView).load(listItem.imageUrl).into(imageView);
+            Glide.with(itemView)
+                    .load(listItem.imageUrl)
+                    .transition(withCrossFade())
+                    .into(mImageView);
         }
         else {
-            Glide.with(itemView).load(getImageUrl(listItem.name, listItem.type)).into(imageView);
+            Glide.with(itemView)
+                    .load(getImageUrl(listItem.name, listItem.type))
+                    .transition(withCrossFade())
+                    .into(mImageView);
         }
 
         if(!listItem.size.equalsIgnoreCase("")) {
-            quantities.setText(String.format(Locale.ENGLISH, "%s", listItem.size));
-            quantities.setVisibility(View.VISIBLE);
+            mQuantities.setText(String.format(Locale.ENGLISH, "%s", listItem.size));
+            mQuantities.setVisibility(View.VISIBLE);
         }
-        currentNumber.setText("0");
-        String priceString = String.format(Locale.ENGLISH, "Rs %.1f",
+        mCurrentNumber.setText("0");
+        String priceString = String.format(Locale.ENGLISH, "%s %.1f",
+                BuildConfig.CURRENCY_TYPE,
                 listItem.price);
-        price.setText(priceString);
+        mPrice.setText(priceString);
         if (item != null && offerItem != null) {
             if (item.quantity >= offerItem.minQuantity) {
                 float discountedPrice;
                 discountedPrice = (float) (listItem.price - (listItem.price * offerItem.percentageDiscount));
-                priceString = String.format(Locale.ENGLISH, "Rs %.1f\t Rs %.1f",
-                        listItem.price, discountedPrice);
+                priceString = String.format(Locale.ENGLISH, "%s %.1f\t %s %.1f",
+                        BuildConfig.CURRENCY_TYPE, listItem.price, BuildConfig.CURRENCY_TYPE, discountedPrice);
                 Spannable spannable = new SpannableString(priceString);
                 spannable.setSpan(
                         new StrikethroughSpan(),
                         0, priceString.lastIndexOf("\t"),
                         Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                price.setText(spannable);
+                mPrice.setText(spannable);
             }
         }
         if (item != null) {
-            currentNumber.setText(String.format(Locale.ENGLISH, "%d",
+            mCurrentNumber.setText(String.format(Locale.ENGLISH, "%d",
                     item.quantity));
-            addButton.setVisibility(View.GONE);
-            controlButton.setVisibility(View.VISIBLE);
+            mAddButton.setVisibility(View.GONE);
+            mRemoveItem.setVisibility(View.VISIBLE);
+            mCurrentNumber.setVisibility(View.VISIBLE);
         }
-        offerText.setText("");
+        mOfferText.setText("");
         if (offerItem != null) {
-            offerText.setText(String.format(Locale.ENGLISH, "Buy %d and get %d%% off",
+            mOffersView.setVisibility(View.VISIBLE);
+            mOfferText.setText(String.format(Locale.ENGLISH, "Buy %d and get %d%% off",
                     offerItem.minQuantity,
                     (int) (offerItem.percentageDiscount * 100)));
         }
-    }
-
-    public void setData(CartItemOffer listItem) {
-        addButton.setVisibility(View.GONE);
-        controlButton.setVisibility(View.VISIBLE);
-        itemName.setText(listItem.item.name);
-        quantities.setVisibility(View.GONE);
-        imageName.setText(String.format(Locale.ENGLISH, "%s", listItem.item.name));
-        if(listItem.item.imageUrl != null && !listItem.item.imageUrl.isEmpty()) {
-            Glide.with(itemView).load(listItem.item.imageUrl).into(imageView);
+//        mParentView.setStrokeColor(ContextCompat.getColor(itemView.getContext(),R.color.colorPrimary));
+        if(shouldHighlight) {
+            mParentView.setStrokeColor(ContextCompat.getColor(itemView.getContext(),R.color.colorPrimary));
+//            new Handler().postDelayed(() -> mParentView.setStrokeColor(Color.WHITE),800);
         }
-        else {
-            Glide.with(itemView).load(getImageUrl(listItem.item.name, listItem.item.type)).into(imageView);
-        }
-
-        if(!listItem.item.size.equalsIgnoreCase("")) {
-            quantities.setText(String.format(Locale.ENGLISH, "%s", listItem.item.size));
-            quantities.setVisibility(View.VISIBLE);
-        }
-
-        currentNumber.setText("0");
-        currentNumber.setText(String.format(Locale.ENGLISH, "%d",
-                listItem.cart.quantity));
-        float totalPrice = (float) (listItem.cart.quantity * listItem.item.price);
-        String priceString = String.format(Locale.ENGLISH, "Rs %.1f",
-                totalPrice);
-        price.setText(priceString);
-        offerText.setText("");
-
-        if (listItem.offer == null) {
-            return;
-        }
-        offerText.setText(String.format(Locale.ENGLISH, "Buy %d and get %d%% off",
-                listItem.offer.minQuantity,
-                (int) (listItem.offer.percentageDiscount * 100)));
-        if (listItem.cart.quantity >= listItem.offer.minQuantity) {
-            float discountedPrice;
-            discountedPrice = (float) (totalPrice - (totalPrice * listItem.offer.percentageDiscount));
-            priceString = String.format(Locale.ENGLISH, "Rs %.1f\t Rs %.1f",
-                    totalPrice, discountedPrice);
-        }
-        Spannable spannable = new SpannableString(priceString);
-        if (listItem.cart.quantity >= listItem.offer.minQuantity) {
-            spannable.setSpan(
-                    new StrikethroughSpan(),
-                    0, priceString.lastIndexOf("\t"),
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        }
-        price.setText(spannable);
     }
 
     private String getImageUrl(String name, @ListType String category) {
@@ -174,11 +155,11 @@ public class ItemView extends RecyclerView.ViewHolder {
             return "";
         }
 
-        if (name.toLowerCase().contains("tomato -")) {
+        if (name.toLowerCase().contains("tomato")) {
             imageUrl = "https://www.bigbasket.com/media/uploads/p/s/40022638_3-fresho-tomato-local-organically-grown.jpg";
-        } else if (name.toLowerCase().contains("onion -")) {
+        } else if (name.toLowerCase().contains("onion")) {
             imageUrl = "https://www.bigbasket.com/media/uploads/p/s/40023472_3-fresho-onion-organically-grown.jpg";
-        } else if (name.toLowerCase().contains("potato -")) {
+        } else if (name.toLowerCase().contains("potato")) {
             imageUrl = "https://www.bigbasket.com/media/uploads/p/s/40023476_4-fresho-potato-organically-grown.jpg";
         } else if (name.toLowerCase().contains("maggi")) {
             imageUrl = "https://www.bigbasket.com/media/uploads/p/s/266109_15-maggi-2-minute-instant-noodles-masala.jpg";

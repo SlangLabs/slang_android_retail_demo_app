@@ -7,30 +7,36 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import in.slanglabs.sampleretailapp.Model.ItemListUIModel;
 import in.slanglabs.sampleretailapp.Model.ItemOfferCart;
 import in.slanglabs.sampleretailapp.R;
 import in.slanglabs.sampleretailapp.UI.ItemClickListener;
 import in.slanglabs.sampleretailapp.UI.ViewHolder.ItemView;
 import in.slanglabs.sampleretailapp.UI.ViewModel.AppViewModel;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class ListAdapter extends
         RecyclerView.Adapter<RecyclerView.ViewHolder> implements ItemClickListener {
 
-    private List<ItemOfferCart> list = new ArrayList<>();
+    private List<ItemListUIModel> mList = new ArrayList<>();
 
-    private AppViewModel appViewModel;
-    private ItemClickListener itemClickListener;
+    private AppViewModel mAppViewModel;
+    private ItemClickListener mItemClickListener;
 
     public ListAdapter(AppViewModel appViewModel, ItemClickListener itemClickListener) {
-        this.appViewModel = appViewModel;
-        this.itemClickListener = itemClickListener;
+        this.mAppViewModel = appViewModel;
+        this.mItemClickListener = itemClickListener;
     }
 
-    public void setList(List<ItemOfferCart> list) {
-        this.list = list;
+    public void setList(List<ItemListUIModel> list) {
+        this.mList = list;
+        notifyDataSetChanged();
+    }
+
+    public void clear() {
+        this.mList.clear();
         notifyDataSetChanged();
     }
 
@@ -47,27 +53,27 @@ public class ListAdapter extends
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         ItemView viewHolder = (ItemView) holder;
-        viewHolder.setData(list.get(position).item, list.get(position).cart, list.get(position).offer);
+        viewHolder.setData(mList.get(position).itemOfferCart.item, mList.get(position).itemOfferCart.cart, mList.get(position).itemOfferCart.offer, mList.get(position).shouldHightLight);
     }
 
     @Override
     public int getItemCount() {
-        return list.size();
+        return mList.size();
     }
 
     @Override
     public void itemClicked(int position) {
-        this.itemClickListener.itemClicked(list.get(position).item);
+        this.mItemClickListener.itemClicked(mList.get(position).itemOfferCart.item);
     }
 
     @Override
     public void addItem(int position) {
-        appViewModel.addItem(list.get(position).item);
+        mAppViewModel.addItem(mList.get(position).itemOfferCart.item, true);
     }
 
     @Override
     public void removeItem(int position) {
-        appViewModel.removeItem(list.get(position).item);
+        mAppViewModel.removeItem(mList.get(position).itemOfferCart.item);
     }
 
 }

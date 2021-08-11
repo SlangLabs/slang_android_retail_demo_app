@@ -6,6 +6,7 @@ import java.util.Objects;
 public class SearchItem implements Serializable {
     public String name = "";
     public String brandName = "";
+    public String productName = "";
     public String size = "";
     public int quantity = 0;
     public boolean isAddToCart = false;

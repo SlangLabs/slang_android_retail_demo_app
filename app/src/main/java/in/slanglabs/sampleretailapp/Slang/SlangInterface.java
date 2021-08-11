@@ -3,21 +3,15 @@ package in.slanglabs.sampleretailapp.Slang;
 import android.app.Activity;
 import android.app.Application;
 import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
-import android.widget.Toast;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 
-import in.slanglabs.assistants.base.AssistantUIPosition;
-import in.slanglabs.assistants.base.BaseUserJourney;
 import in.slanglabs.assistants.retail.AssistantConfiguration;
 import in.slanglabs.assistants.retail.AssistantError;
 import in.slanglabs.assistants.retail.AssistantSubDomain;
-import in.slanglabs.assistants.retail.AssistantUI;
 import in.slanglabs.assistants.retail.NavigationInfo;
 import in.slanglabs.assistants.retail.NavigationUserJourney;
 import in.slanglabs.assistants.retail.OrderInfo;
@@ -28,42 +22,22 @@ import in.slanglabs.assistants.retail.SearchUserJourney;
 import in.slanglabs.assistants.retail.SlangRetailAssistant;
 import in.slanglabs.platform.SlangBuddy;
 import in.slanglabs.platform.SlangLocale;
-import in.slanglabs.platform.prompt.SlangMessage;
 import in.slanglabs.sampleretailapp.App;
 import in.slanglabs.sampleretailapp.BuildConfig;
-import in.slanglabs.sampleretailapp.Model.FeedbackItem;
-import in.slanglabs.sampleretailapp.Model.SearchItem;
 import in.slanglabs.sampleretailapp.Repository;
 
 public class SlangInterface {
     private final String TAG = "SlangInterface";
-    private SearchUserJourney sSearchJourney;
-    private OrderManagementUserJourney sOrderManagementJourney;
-    private NavigationUserJourney sNavigationUserJourney;
-    private final Application application;
-    private boolean assistantClosed = false;
 
-    private String utterances = "";
+    private SearchUserJourney mSearchJourney;
+    private OrderManagementUserJourney mOrderManagementJourney;
+    private NavigationUserJourney mNavigationUserJourney;
 
-    public void init(String assitantId, String apiKey) {
-        HashSet<Locale> requestedLocales = new HashSet<>();
-        requestedLocales.add(SlangLocale.LOCALE_ENGLISH_IN);
-        requestedLocales.add(SlangLocale.LOCALE_HINDI_IN);
-        requestedLocales.add(SlangLocale.LOCALE_KANNADA_IN);
-
-        AssistantConfiguration configuration = new AssistantConfiguration.Builder()
-                .setRequestedLocales(requestedLocales)
-                .setAssistantId(assitantId)
-                .setAPIKey(apiKey)
-                .setDefaultLocale(SlangLocale.LOCALE_ENGLISH_IN)
-                .setEnvironment(SlangRetailAssistant.Environment.STAGING)
-                .build();
-
-        SlangRetailAssistant.initialize(application, configuration);
-    }
+    private boolean mIsAssistantClosed = false;
 
     public SlangInterface(Application application) {
-        this.application = application;
+        init(application, BuildConfig.ASSISTANT_ID, BuildConfig.API_KEY);
+
         SlangRetailAssistant.setAction(new SlangRetailAssistant.Action() {
 
             @Override
@@ -73,11 +47,8 @@ public class SlangInterface {
 
                 Repository repository = ((App) (application)).getRepository();
 
-                //Clear other user journey contexts when the user journey has changed.
-                OrderManagementUserJourney.getContext().clear();
-
                 //Have a copy of the user journey object to perform operations on it.
-                sSearchJourney = searchJourney;
+                mSearchJourney = searchJourney;
 
                 new Handler().post(() -> {
 
@@ -96,11 +67,8 @@ public class SlangInterface {
 
                 Repository repository = ((App) (application)).getRepository();
 
-                //Clear other user journey contexts when the user journey has changed.
-                SearchUserJourney.getContext().clear();
-
                 //Have a copy of the user journey object to perform operations on it.
-                sOrderManagementJourney = orderManagementJourney;
+                mOrderManagementJourney = orderManagementJourney;
                 new Handler().post(() -> {
 
                     //Get instance of the repository and perform the logic for this user journey.
@@ -124,12 +92,8 @@ public class SlangInterface {
 
                 Repository repository = ((App) (application)).getRepository();
 
-                //Return waiting state in indicate that the async operation is being performed.
-                SearchUserJourney.getContext().clear();
-                OrderManagementUserJourney.getContext().clear();
-
                 //Have a copy of the user journey object to perform operations on it.
-                sNavigationUserJourney = navigationUserJourney;
+                mNavigationUserJourney = navigationUserJourney;
 
                 String targetString = navigationInfo.getTarget().toLowerCase();
                 new Handler().post(() -> {
@@ -150,36 +114,24 @@ public class SlangInterface {
         SlangRetailAssistant.setLifecycleObserver(new SlangRetailAssistant.LifecycleObserver() {
             @Override
             public void onAssistantInitSuccess() {
-                Repository repository = ((App) (application)).getRepository();
-                repository.setSlangInitialized(true);
             }
 
             @Override
             public void onAssistantInitFailure(String s) {
-                Log.d(TAG, "Initialization failure : " + s);
-                new Handler(Looper.getMainLooper()).post(() ->
-                        Toast.makeText(application.getApplicationContext(),
-                        "Initialization failure : "+s,
-                        Toast.LENGTH_LONG).show());
             }
 
             @Override
             public void onAssistantInvoked() {
-                assistantClosed = false;
-                Repository repository = ((App) (application)).getRepository();
-                repository.setSlangInvoked(true);
+                mIsAssistantClosed = false;
             }
 
             @Override
             public void onAssistantClosed(boolean b) {
-                assistantClosed = true;
                 Repository repository = ((App) (application)).getRepository();
-                repository.setSlangInvoked(false);
                 repository.setSelectedSearchItem(-1);
-                SearchUserJourney.getContext().clear();
-                OrderManagementUserJourney.getContext().clear();
-                NavigationUserJourney.getContext().clear();
-                utterances = "";
+                repository.setCurrentSearchItem(null);
+                repository.setCurrentOrderItem(null);
+                mIsAssistantClosed = true;
             }
 
             @Override
@@ -193,18 +145,10 @@ public class SlangInterface {
 
             @Override
             public void onUtteranceDetected(String utterance) {
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    if (SlangInterface.this.utterances.equalsIgnoreCase("")) {
-                        utterances = utterance;
-                    } else {
-                        utterances += "::" + utterance;
-                    }
-                });
             }
 
             @Override
             public void onOnboardingSuccess() {
-
             }
 
             @Override
@@ -230,105 +174,108 @@ public class SlangInterface {
     }
 
     public void startConversation(Activity activity) {
-        //This method is to notify SlangRetailAssistant to start a new user journey on top of this activity.
+        //This method is to notify SlangRetailAssistant to start a new conversation.
         SlangRetailAssistant.startConversation(RetailUserJourney.SEARCH, activity, true);
-        Map<String, String> eventMetaData = new HashMap<>();
-        eventMetaData.put("isAppTriggerClick", "true");
-        trackAppEvent("startConversation", eventMetaData);
     }
 
     //This method is to notify SlangRetailAssistant that the search async operation was successful.
     public void notifySearchSuccess() {
-        if (sSearchJourney == null || assistantClosed) return;
+        if (mSearchJourney == null || mIsAssistantClosed) return;
         try {
 
-            SearchUserJourney.getContext().clear();
-
             //Call the appropriate app state condition on the user journey object.
-            sSearchJourney.setSuccess();
+            mSearchJourney.setSuccess();
 
             //Notify the current appropriate app state for search.
-            sSearchJourney.notifyAppState(SearchUserJourney.AppState.SEARCH_RESULTS);
+            mSearchJourney.notifyAppState(SearchUserJourney.AppState.SEARCH_RESULTS);
 
         } catch (Exception e) {
             Log.e(TAG, "" + e.getLocalizedMessage());
         }
-        sSearchJourney = null;
+        mSearchJourney = null;
+    }
+
+    //This method is to notify SlangRetailAssistant that the search async operation has resulted in search item not specified.
+    public void notifySearchItemNotSpecified() {
+        if (mSearchJourney == null || mIsAssistantClosed) return;
+        try {
+
+            //Call the appropriate app state condition on the user journey object.
+            mSearchJourney.setItemNotSpecified();
+
+            //Notify the current appropriate app state for search.
+            mSearchJourney.notifyAppState(SearchUserJourney.AppState.SEARCH_RESULTS);
+
+        } catch (Exception e) {
+            Log.e(TAG, "" + e.getLocalizedMessage());
+        }
+        mSearchJourney = null;
     }
 
     //This method is to notify SlangRetailAssistant that the search async operation has resulted in search item not found.
     public void notifySearchItemNotFound() {
-        if (sSearchJourney == null || assistantClosed) return;
+        if (mSearchJourney == null || mIsAssistantClosed) return;
         try {
 
-            sSearchJourney.clearRetailJourneyToContinue();
-            SearchUserJourney.getContext().clear();
-
             //Call the appropriate app state condition on the user journey object.
-            sSearchJourney.setItemNotFound();
+            mSearchJourney.setItemNotFound();
 
             //Notify the current appropriate app state for search.
-            sSearchJourney.notifyAppState(SearchUserJourney.AppState.SEARCH_RESULTS);
+            mSearchJourney.notifyAppState(SearchUserJourney.AppState.SEARCH_RESULTS);
 
         } catch (Exception e) {
             Log.e(TAG, "" + e.getLocalizedMessage());
         }
-        sSearchJourney = null;
+        mSearchJourney = null;
     }
 
     //This method is to notify SlangRetailAssistant that the add to cart async operation was successful.
     public void notifyAddToCartSuccess() {
-        if (sSearchJourney == null || assistantClosed) return;
+        if (mSearchJourney == null || mIsAssistantClosed) return;
         try {
 
-            SearchUserJourney.getContext().clear();
+            //Optionally, trigger a new search user journey post reporting the app state.
+            mSearchJourney.setRetailJourneyToContinue(RetailUserJourney.SEARCH, true);
 
             //Call the appropriate app state condition on the user journey object.
-            sSearchJourney.setSuccess();
+            mSearchJourney.setSuccess();
 
             //Notify the current appropriate app state for search.
-            sSearchJourney.notifyAppState(SearchUserJourney.AppState.ADD_TO_CART);
+            mSearchJourney.notifyAppState(SearchUserJourney.AppState.ADD_TO_CART);
 
         } catch (Exception e) {
             Log.e(TAG, "" + e.getLocalizedMessage());
         }
-        sSearchJourney = null;
+        mSearchJourney = null;
     }
 
     //This method is to notify SlangRetailAssistant that the add to cart async operation has resulted in item not found.
     public void notifyAddToCartItemNotFound() {
-        if (sSearchJourney == null || assistantClosed) return;
+        if (mSearchJourney == null || mIsAssistantClosed) return;
         try {
 
-            sSearchJourney.clearRetailJourneyToContinue();
-            SearchUserJourney.getContext().clear();
-
             //Call the appropriate app state condition on the user journey object.
-            sSearchJourney.setItemNotFound();
+            mSearchJourney.setItemNotFound();
 
             //Notify the current appropriate app state for search.
-            sSearchJourney.notifyAppState(SearchUserJourney.AppState.ADD_TO_CART);
-            SearchUserJourney.getContext().clear();
+            mSearchJourney.notifyAppState(SearchUserJourney.AppState.ADD_TO_CART);
 
         } catch (Exception e) {
             Log.e(TAG, "" + e.getLocalizedMessage());
         }
-        sSearchJourney = null;
+        mSearchJourney = null;
     }
 
     //This method is to notify SlangRetailAssistant that the add to cart async operation was successful.
     public void notifyAddToCartNeedDisambiguation() {
-        if (sSearchJourney == null || assistantClosed) return;
+        if (mSearchJourney == null || mIsAssistantClosed) return;
         try {
 
-            sSearchJourney.clearRetailJourneyToContinue();
-            SearchUserJourney.getContext().clear();
-
             //Call the appropriate app state condition on the user journey object.
-            sSearchJourney.setNeedDisambiguation();
+            mSearchJourney.setNeedDisambiguation();
 
             //Notify the current appropriate app state for search.
-            sSearchJourney.notifyAppState(SearchUserJourney.AppState.ADD_TO_CART);
+            mSearchJourney.notifyAppState(SearchUserJourney.AppState.ADD_TO_CART);
 
         } catch (Exception e) {
             Log.e(TAG, "" + e.getLocalizedMessage());
@@ -337,17 +284,14 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the add to cart async operation was successful.
     public void notifyAddToCartNeedQuantity() {
-        if (sSearchJourney == null || assistantClosed) return;
+        if (mSearchJourney == null || mIsAssistantClosed) return;
         try {
 
-            sSearchJourney.clearRetailJourneyToContinue();
-            SearchUserJourney.getContext().clear();
-
             //Call the appropriate app state condition on the user journey object.
-            sSearchJourney.setNeedItemQuantity();
+            mSearchJourney.setNeedItemQuantity();
 
             //Notify the current appropriate app state for search.
-            sSearchJourney.notifyAppState(SearchUserJourney.AppState.ADD_TO_CART);
+            mSearchJourney.notifyAppState(SearchUserJourney.AppState.ADD_TO_CART);
 
         } catch (Exception e) {
             Log.e(TAG, "" + e.getLocalizedMessage());
@@ -356,16 +300,13 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order async operation was successful.
     public void notifyOrderManagementSuccess() {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setSuccess();
+        mOrderManagementJourney.setSuccess();
         try {
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.VIEW_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -375,18 +316,15 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order async operation was unsuccessful.
     public void notifyOrderManagementFailure() {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setFailure();
+        mOrderManagementJourney.setFailure();
 
         try {
 
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.VIEW_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -396,19 +334,15 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order async operation resulted in an empty list.
     public void notifyOrderManagementEmpty() {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setOrdersEmpty();
-        OrderManagementUserJourney.getContext().clear();
+        mOrderManagementJourney.setOrdersEmpty();
 
         try {
 
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.VIEW_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -418,19 +352,15 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order async operation resulted in an empty list.
     public void notifyOrderManagementCancelEmpty() {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setOrdersEmpty();
-        OrderManagementUserJourney.getContext().clear();
+        mOrderManagementJourney.setOrdersEmpty();
 
         try {
 
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.CANCEL_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -440,18 +370,15 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order async operation resulted in invalid order item.
     public void notifyOrderNotFound(int orderIndex) {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setOrderNotFound(orderIndex);
+        mOrderManagementJourney.setOrderNotFound(orderIndex);
 
         try {
 
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.VIEW_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -461,18 +388,15 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order async operation needs to disambiguate the index position.
     public void notifyOrderManagementIndexRequiredView() {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setOrderIndexRequired();
+        mOrderManagementJourney.setOrderIndexRequired();
 
         try {
 
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.VIEW_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -481,18 +405,15 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order async operation needs to disambiguate the index position.
     public void notifyOrderManagementIndexRequiredCancel() {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setOrderIndexRequired();
+        mOrderManagementJourney.setOrderIndexRequired();
 
         try {
 
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.CANCEL_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -501,18 +422,15 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order cancel async operation resulted in success.
     public void notifyOrderManagementCancelConfirmationSuccess() {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setUserConfirmedCancel();
+        mOrderManagementJourney.setUserConfirmedCancel();
 
         try {
 
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.CANCEL_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -522,19 +440,16 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order cancel async operation requested a cancel confirmation prompt.
     public void notifyOrderManagementCancelConfirmation(Integer index) {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         OrderManagementUserJourney.getContext().setOrderIndex(index);
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setConfirmationRequired();
+        mOrderManagementJourney.setConfirmationRequired();
         try {
 
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.CANCEL_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -543,18 +458,15 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order cancel async operation resulted in invalid order item.
     public void notifyOrderManagementCancelOrderNotFound(int index) {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setOrderNotFound(index);
+        mOrderManagementJourney.setOrderNotFound(index);
 
         try {
 
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.CANCEL_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -564,16 +476,13 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order cancel async operation resulted in failure.
     public void notifyOrderManagementCancelFailure() {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setFailure();
+        mOrderManagementJourney.setFailure();
         try {
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.CANCEL_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -583,16 +492,13 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order cancel async operation resulted in failure.
     public void notifyOrderManagementCancelSuccess() {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setSuccess();
+        mOrderManagementJourney.setSuccess();
         try {
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.CANCEL_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -602,16 +508,13 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the order index required async operation resulted in denied.
     public void notifyOrderManagementCancelConfirmationDenied() {
-        if (sOrderManagementJourney == null || assistantClosed) return;
-
-        sOrderManagementJourney.clearRetailJourneyToContinue();
-        OrderManagementUserJourney.getContext().clear();
+        if (mOrderManagementJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the user journey object.
-        sOrderManagementJourney.setUserDeniedCancel();
+        mOrderManagementJourney.setUserDeniedCancel();
         try {
             //Notify the current appropriate app state for order management.
-            sOrderManagementJourney
+            mOrderManagementJourney
                     .notifyAppState(OrderManagementUserJourney.AppState.CANCEL_ORDER);
         } catch (Exception e) {
             Log.e("OrderActivity", "" + e.getLocalizedMessage());
@@ -621,16 +524,14 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the navigation async operation resulted in success.
     public void notifyNavigationUserJourneySuccess() {
-        if (sNavigationUserJourney == null) return;
-
-        NavigationUserJourney.getContext().clear();
+        if (mNavigationUserJourney == null) return;
 
         //Call the appropriate app state condition on the navigation journey object.
-        sNavigationUserJourney.setNavigationSuccess();
+        mNavigationUserJourney.setNavigationSuccess();
         try {
 
             //Notify the current appropriate app state for navigation.
-            sNavigationUserJourney.notifyAppState(NavigationUserJourney.AppState.NAVIGATION);
+            mNavigationUserJourney.notifyAppState(NavigationUserJourney.AppState.NAVIGATION);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -639,38 +540,57 @@ public class SlangInterface {
 
     //This method is to notify SlangRetailAssistant that the navigation async operation resulted in failure.
     public void notifyNavigationUserJourneyFailure() {
-        if (sNavigationUserJourney == null || assistantClosed) return;
-
-        sNavigationUserJourney.clearRetailJourneyToContinue();
-        NavigationUserJourney.getContext().clear();
+        if (mNavigationUserJourney == null || mIsAssistantClosed) return;
 
         //Call the appropriate app state condition on the navigation journey object.
-        sNavigationUserJourney.setNavigationFailure();
+        mNavigationUserJourney.setNavigationFailure();
         try {
 
             //Notify the current appropriate app state for navigation.
-            sNavigationUserJourney.notifyAppState(NavigationUserJourney.AppState.NAVIGATION);
+            mNavigationUserJourney.notifyAppState(NavigationUserJourney.AppState.NAVIGATION);
         } catch (Exception e) {
             e.printStackTrace();
         }
 
     }
 
-    //This method is to notify SlangRetailAssistant to clear the current search context.
-    //Calling this method will clear the existing context and will start a fresh context from the next search journey
-    public void clearSearchContext() {
-        SearchUserJourney.getContext().clear();
+    public boolean isSlangActive() {
+        return !mIsAssistantClosed;
     }
-
-    //This method is to notify SlangRetailAssistant to clear the current order management context.
-    //Calling this method will clear the existing context and will start a fresh context from the next order management journey
-    public void clearOrderManagementContext() {
-        OrderManagementUserJourney.getContext().clear();
-    }
-
 
     public void trackAppEvent(String eventName, Map<String, String> eventMap) {
         SlangBuddy.trackAppEvent(eventName, eventMap);
+    }
+
+    private void init(Application application, String assistantId, String apiKey) {
+        HashSet<Locale> requestedLocales = new HashSet<>();
+        requestedLocales.add(SlangLocale.LOCALE_ENGLISH_IN);
+        requestedLocales.add(SlangLocale.LOCALE_HINDI_IN);
+        requestedLocales.add(SlangLocale.LOCALE_KANNADA_IN);
+        requestedLocales.add(SlangLocale.LOCALE_ENGLISH_US);
+
+        boolean disableOnBoardingLocaleSelection = false;
+        Locale defaultLocale = SlangLocale.LOCALE_ENGLISH_IN;
+
+        if(BuildConfig.FLAVOR.equalsIgnoreCase("bel")) {
+            defaultLocale = SlangLocale.LOCALE_ENGLISH_US;
+            disableOnBoardingLocaleSelection = true;
+        }
+
+        AssistantConfiguration configuration = new AssistantConfiguration.Builder()
+                .setRequestedLocales(requestedLocales)
+                .setAssistantId(assistantId)
+                .disableOnboardingLocaleSelection(disableOnBoardingLocaleSelection)
+                .setAPIKey(apiKey)
+                .setDefaultLocale(defaultLocale)
+                .setEnvironment(SlangRetailAssistant.Environment.STAGING)
+                .build();
+
+        SlangRetailAssistant.initialize(application, configuration);
+        SlangRetailAssistant.setAppDefaultSubDomain(AssistantSubDomain.GROCERY);
+        SearchUserJourney.disablePreserveContext();
+        NavigationUserJourney.disablePreserveContext();
+        OrderManagementUserJourney.disablePreserveContext();
     }
 
 }

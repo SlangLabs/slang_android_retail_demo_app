@@ -8,13 +8,13 @@
 
     <TextView
         android:id="@+id/order_empty_text_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:gravity="center"
         android:padding="16dp"
-        android:visibility="gone"
+        android:text="Sorry 😔\nNo matching items found"
         android:textAppearance="@style/TextAppearance.MaterialComponents.Headline5"
-        android:text="Search list empty"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:visibility="visible" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/list_item_view"
@@ -22,10 +22,36 @@
         android:layout_height="0dp"
         android:clipToPadding="false"
         android:paddingBottom="80dp"
+        android:layoutAnimation="@anim/layout_animation_slide_right"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/loading_items_view"
+        android:visibility="visible"
+        app:layout_constraintTop_toTopOf="@id/list_item_view"
+        app:layout_constraintBottom_toBottomOf="@id/list_item_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ProgressBar
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            />
+
+    <TextView
+        android:gravity="center"
+        android:visibility="visible"
+        android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+        android:textStyle="bold"
+        android:text="Loading Items"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+    </LinearLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab"

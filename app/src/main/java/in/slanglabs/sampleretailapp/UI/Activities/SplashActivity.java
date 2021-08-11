@@ -22,6 +22,6 @@ public class SplashActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        appViewModel.getSlangInterface().hideTrigger(this);
+        mAppViewModel.getSlangInterface().hideTrigger(this);
     }
 }

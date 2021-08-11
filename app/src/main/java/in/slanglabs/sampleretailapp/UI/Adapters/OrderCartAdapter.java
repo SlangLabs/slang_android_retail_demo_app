@@ -19,16 +19,16 @@ import java.util.List;
 public class OrderCartAdapter extends
         RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
-    private List<CartItemOffer> list = new ArrayList<>();
+    private List<CartItemOffer> mList = new ArrayList<>();
 
-    private AppViewModel appViewModel;
+    private AppViewModel mAppViewModel;
 
     public OrderCartAdapter(AppViewModel appViewModel) {
-        this.appViewModel = appViewModel;
+        this.mAppViewModel = appViewModel;
     }
 
     public void setList(List<CartItemOffer> list) {
-        this.list = list;
+        this.mList = list;
         notifyDataSetChanged();
     }
 
@@ -45,11 +45,11 @@ public class OrderCartAdapter extends
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         OrderCartViewHolder viewHolder = (OrderCartViewHolder) holder;
-        viewHolder.setData(list.get(position).item,list.get(position).cart, list.get(position).offer);
+        viewHolder.setData(mList.get(position).item,mList.get(position).cart, mList.get(position).offer);
     }
 
     @Override
     public int getItemCount() {
-        return list.size();
+        return mList.size();
     }
 }
