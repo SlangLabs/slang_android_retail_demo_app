@@ -26,6 +26,7 @@ public class OffersActivity extends MainActivity implements ItemClickListener {
 
     private OfferItemsAdapter mListAdapter;
     private View mLoadingItemsView;
+    private View mOrderEmptyTextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,6 +44,8 @@ public class OffersActivity extends MainActivity implements ItemClickListener {
 
         mLoadingItemsView = contentView.findViewById(R.id.loading_items_view);
         mLoadingItemsView.setVisibility(View.GONE);
+        mOrderEmptyTextView = contentView.findViewById(R.id.order_empty_text_view);
+        mOrderEmptyTextView.setVisibility(View.GONE);
 
         RecyclerView listItemView = contentView.findViewById(R.id.list_item_view);
 
@@ -50,6 +53,11 @@ public class OffersActivity extends MainActivity implements ItemClickListener {
                 AppViewModel.class);
         appViewModel.getOfferItems().observe(this,
                 offerItems -> {
+                    if (offerItems==null || offerItems.isEmpty()){
+                        mOrderEmptyTextView.setVisibility(View.GONE);
+                    }else{
+                        mOrderEmptyTextView.setVisibility(View.VISIBLE);
+                    }
                     mLoadingItemsView.setVisibility(View.GONE);
                     mListAdapter.setList(offerItems);
                 });
