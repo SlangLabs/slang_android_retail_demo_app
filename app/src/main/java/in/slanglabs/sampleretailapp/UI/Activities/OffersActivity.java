@@ -54,9 +54,9 @@ public class OffersActivity extends MainActivity implements ItemClickListener {
         appViewModel.getOfferItems().observe(this,
                 offerItems -> {
                     if (offerItems==null || offerItems.isEmpty()){
-                        mOrderEmptyTextView.setVisibility(View.GONE);
-                    }else{
                         mOrderEmptyTextView.setVisibility(View.VISIBLE);
+                    }else{
+                        mOrderEmptyTextView.setVisibility(View.GONE);
                     }
                     mLoadingItemsView.setVisibility(View.GONE);
                     mListAdapter.setList(offerItems);

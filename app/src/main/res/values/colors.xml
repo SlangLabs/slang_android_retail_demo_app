@@ -2,6 +2,6 @@
 <resources>
     <color name="colorPrimary">#139A7A</color>
     <color name="colorPrimaryDark">#0f7b62</color>
-    <color name="colorAccent">#dd0608</color>
-    <color name="colorFabIcon">#f0851a</color>
+    <color name="colorAccent">#f0851a</color>
+    <color name="colorFabIcon">#f0d765</color>
 </resources>
