@@ -33,8 +33,8 @@ android {
             dimension = 'type'
             buildConfigField "int", "DB_VERSION", "1"
             buildConfigField "String", "CURRENCY_TYPE", "\"₹\""
-            buildConfigField "String", "API_KEY", "\"00aca65a68494054974680374b360fce\""
-            buildConfigField "String", "ASSISTANT_ID", "\"bf08dee83833499d9556af7874634ed0\""
+            buildConfigField "String", "API_KEY", "\"<APIKey>\""
+            buildConfigField "String", "ASSISTANT_ID", "\"<AssistantID>\""
         }
     }
     compileOptions {
