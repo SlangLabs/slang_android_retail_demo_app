@@ -11,7 +11,7 @@ A sample retail with the following features :
 - Ability to cancel orders.
 
 This app has been integrated with the SlangRetailAssistant :
-- It supports Search, Order Managament and Navigation User Journey.
+- It supports Search, Order Managament and Navigation User Journies.
 
 Please, replace the `<APIKey>` and `<AssistantID>` in the following location :
 `app/build.gradle`
