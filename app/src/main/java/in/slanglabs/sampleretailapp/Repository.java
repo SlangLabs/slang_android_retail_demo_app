@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
 import androidx.core.util.Pair;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MediatorLiveData;
@@ -77,6 +78,8 @@ public class Repository {
     private SearchItem mCurrentSearchItem;
     private OrderInfo mCurrentOrderItem;
 
+    private final List<String> orderIds = new ArrayList<>();
+
     Repository(final AppDatabase database, final AppExecutors appExecutors,
                final SlangInterface slangInterface) {
         this.mDatabase = database;
@@ -123,6 +126,12 @@ public class Repository {
         };
 
         items.observeForever(mObserver);
+
+        database.orderDao().loadAllOrders().observeForever(orderItems -> {
+            for (OrderItem orderItem: orderItems) {
+                orderIds.add(orderItem.orderId);
+            }
+        });
 
     }
 
@@ -801,4 +810,19 @@ public class Repository {
     public SingleLiveEvent<Boolean> getStartSlangSession() {
         return startSlangSession;
     }
+
+    public int getTotalOrders() {
+        return orderIds.size();
+    }
+
+    public @Nullable String getOrderIdForIndex(int index) {
+        if(index > orderIds.size()) {
+            return null;
+        }
+        if(index == -1) {
+            return orderIds.get(0);
+        }
+        return orderIds.get(index);
+    }
+
 }

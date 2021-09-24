@@ -36,7 +36,7 @@ public class SlangInterface {
     private boolean mIsAssistantClosed = false;
 
     public SlangInterface(Application application) {
-        init(application, BuildConfig.ASSISTANT_ID, BuildConfig.API_KEY);
+//        init(application, BuildConfig.ASSISTANT_ID, BuildConfig.API_KEY);
 
         SlangRetailAssistant.setAction(new SlangRetailAssistant.Action() {
 
